@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+
+require 'pathname'
+require 'fileutils'
+
+ENV.has_key? 'HOME' or raise "'HOME' Environment variable is not available"
+ENV['HOME'].length > 0 or raise "'HOME' Environment variable is empty"
+
+VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'bundle'
+VIM_AUTOLOAD = Pathname.new( ENV['HOME'] ) + '.vim' + 'autoload'
+
+def git(url, location)
+    if File.directory?(location + ".git")
+        puts "trying to update via git pull"
+        FileUtils.cd location do
+            system "git pull"
+        end
+    else
+        system "git clone #{url} #{location}"
+    end
+end
+
+def download(url, target_path)
+    FileUtils.mkdir_p target_path
+    filename = File.basename(url)
+    full_target = Pathname.new(target_path) + filename
+    system "curl -Lso #{full_target} #{url}"
+end
+
+def bundle_install_dir(bundledir, bundle)
+    bundledir + bundle.to_s
+end
+
+puts "* Install autoloads"
+puts "-" * 20
+
+{
+    :pathogen => "https://tpo.pe/pathogen.vim"
+}.each do |name, url|
+    puts "- download #{name} to #{VIM_AUTOLOAD}"
+    download url, VIM_AUTOLOAD
+end
+puts
+
+puts "* Update git repositories"
+puts "-" * 20
+
+{
+    :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git"
+}.each do |name, url|
+    puts "- checking #{name}"
+    git url, bundle_install_dir(VIM_BUNDLE, name)
+end
+puts
+
