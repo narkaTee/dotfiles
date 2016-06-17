@@ -12,7 +12,10 @@ set statusline+=]
 set statusline+=\ %y	" filetype
 set statusline+=\ %m	" modified
 set statusline+=\ %r	" readonly
+
+set statusline+=%{PasteModeStatus()}    " Paste mode status
+
 set statusline+=%=	" seperator (left/right)
-set statusline+=<%{getcwd()}>\ \ \ 	" CWD
+set statusline+=%{getcwd()}\ \ \ 	" CWD
 set statusline+=%-10.(%l,%c%V%)\ %p%%/%L	" line,column  %/num lines
 
