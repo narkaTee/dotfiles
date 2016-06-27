@@ -1,0 +1,11 @@
+
+# source local bash_profile if exists
+if [ -f ~/.bash_profile.local ]; then
+    . ~/.bash_profile.local
+fi
+
+# source interactive bash config
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+

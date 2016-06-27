@@ -1,0 +1,11 @@
+
+# Load additional scripts
+if [ -d "$HOME/.bashrc.d" ] ; then
+    for file in "$HOME"/.bashrc.d/*.bash ; do
+        if [ -e "$file" ] ; then
+            . "$file"
+        fi
+    done
+    unset -v file
+fi
+
