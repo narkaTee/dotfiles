@@ -1,4 +1,4 @@
-execute pathogen#infect()
+silent! execute pathogen#infect()
 
 source $HOME/.vim/custom/functions.vim
 source $HOME/.vim/custom/general-settings.vim

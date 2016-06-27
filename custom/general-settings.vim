@@ -1,5 +1,13 @@
 syntax on
-colorscheme solarized
+
+" Try to use solarized otherwise fallback to desert which is installed on most
+" systems
+try
+    colorscheme solarized
+catch
+    silent! colorscheme desert
+endtry
+
 set background=dark
 
 set number " enable line numbers
@@ -15,8 +23,13 @@ set shiftwidth=4
 set shiftround
 
 if has("autocmd")
-  filetype plugin indent on " enable filetype plugin and indent
+    filetype plugin indent on " enable filetype plugin and indent
+else
+    filetype plugin on
 endif
 
 set modeline " enable modeline parsing
+
+" show tabs and trailing whitespace as well in list mode
+set listchars=eol:$,tab:>-,trail:~
 
