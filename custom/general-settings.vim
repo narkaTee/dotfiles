@@ -3,6 +3,9 @@ syntax on
 " Try to use solarized otherwise fallback to desert which is installed on most
 " systems
 try
+    if &t_Co < 256
+        throw "not enough colors for solarized"
+    endif
     colorscheme solarized
 catch
     silent! colorscheme desert
