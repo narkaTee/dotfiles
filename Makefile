@@ -31,7 +31,7 @@ install-git:
 
 install-git-sh: build-git-sh
 	cd $<; \
-	make install PREFIX=~
+	make install PREFIX="$(HOME)"
 
 build-git-sh:
 	git clone https://github.com/rtomayko/git-sh.git $@
