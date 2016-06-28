@@ -1,11 +1,15 @@
+# set PATH to include the private bin if it exists
+if [ -d "$HOME/bin" ]; then
+    PATH="$HOME/bin:$PATH"
+fi
 
 # source local bash_profile if exists
-if [ -f ~/.bash_profile.local ]; then
-    . ~/.bash_profile.local
+if [ -f "$HOME/.bash_profile.local" ]; then
+    . "$HOME/.bash_profile.local"
 fi
 
 # source interactive bash config
-if [ -f ~/.bashrc ]; then
-    . ~/.bashrc
+if [ -f "$HOME/.bashrc" ]; then
+    . "$HOME/.bashrc"
 fi
 
