@@ -1,0 +1,4 @@
+[alias]
+    graph = "log --graph --abbrev-commit --pretty=oneline --decorate"
+    unstage = "reset HEAD --"
+
