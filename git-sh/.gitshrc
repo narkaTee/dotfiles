@@ -1,0 +1,5 @@
+#~/.gitshrc
+# git-sh customizations
+# vim: ft=sh
+
+alias pff='git pull --ff-only'

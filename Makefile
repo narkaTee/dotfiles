@@ -29,9 +29,13 @@ install-git:
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
 	git config --global --add include.path "$(HOME)/.gitconfig.d/.gitconfig"
 
-install-git-sh: build-git-sh
+install-git-sh: build-git-sh \
+	install-git-sh-rc
 	cd $<; \
 	make install PREFIX="$(HOME)"
+
+install-git-sh-rc:
+	install -m 0644 -- git-sh/.gitshrc "$(HOME)/.gitshrc"
 
 build-git-sh:
 	git clone https://github.com/rtomayko/git-sh.git $@
