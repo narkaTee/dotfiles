@@ -13,7 +13,14 @@ endtry
 
 set background=dark
 
-set number " enable line numbers
+" enable line numbers
+set number
+
+" show commands as I type them
+set showcmd
+
+" set a color column at 80 chars
+set colorcolumn=72
 
 " replace tabs with spaces
 set expandtab
@@ -34,5 +41,5 @@ endif
 set modeline " enable modeline parsing
 
 " show tabs and trailing whitespace as well in list mode
-set listchars=eol:$,tab:>-,trail:~
+set listchars=tab:>-,trail:~
 
