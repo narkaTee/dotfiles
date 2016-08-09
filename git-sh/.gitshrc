@@ -3,3 +3,5 @@
 # vim: ft=sh
 
 alias pff='git pull --ff-only'
+alias root='git rev-parse --show-toplevel'
+alias cdr='cd $(git rev-parse --show-toplevel)'

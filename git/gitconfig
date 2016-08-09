@@ -2,4 +2,5 @@
 [alias]
     graph = "log --graph --abbrev-commit --pretty=oneline --decorate"
     unstage = "reset HEAD --"
+    root = "rev-parse --show-toplevel"
 
