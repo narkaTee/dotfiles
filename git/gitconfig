@@ -4,4 +4,5 @@
     unstage = "reset HEAD --"
     root = "rev-parse --show-toplevel"
     peek = "log -p --max-count=1"
-
+[init]
+    templatedir = ~/.git_template

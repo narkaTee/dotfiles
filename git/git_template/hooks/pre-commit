@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+# checks for non ASCII file names and trailing whitespace
+exec "$(git --exec-path)/../../share/git-core/templates/hooks/pre-commit.sample"
