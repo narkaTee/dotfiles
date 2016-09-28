@@ -1,9 +1,11 @@
 # vim: ft=gitconfig
 [alias]
     graph = "log --graph --abbrev-commit --pretty=oneline --decorate"
-    unstage = "reset HEAD --"
     root = "rev-parse --show-toplevel"
     peek = "log -p --max-count=1"
+    s = "status -s"
+    d = "diff"
+    t = "diff --cached"
 [init]
     templatedir = ~/.git_template
 [rebase]
