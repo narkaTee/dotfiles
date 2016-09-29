@@ -6,6 +6,8 @@
     s = "status -s"
     d = "diff"
     t = "diff --cached"
+    pff = "pull --ff-only"
+    pr = "pull --rebase"
 [init]
     templatedir = ~/.git_template
 [rebase]

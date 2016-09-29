@@ -1,12 +1,10 @@
 .PHONY: install \
 	install-bash \
 	install-git \
-	install-git-sh \
 	clean
 
 install: install-bash \
 	install-git \
-	install-git-sh
 
 install-bash: test-bash
 	install -m 0755 -d -- \
@@ -30,19 +28,6 @@ install-git:
 	cp -Trf git/git_template/ "$(HOME)/git_template"
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
 	git config --global --add include.path "$(HOME)/.gitconfig.d/.gitconfig"
-
-install-git-sh: build-git-sh \
-	install-git-sh-rc
-	cd $<; \
-	make install PREFIX="$(HOME)"
-
-install-git-sh-rc:
-	install -m 0644 -- git-sh/.gitshrc "$(HOME)/.gitshrc"
-
-build-git-sh:
-	git clone https://github.com/rtomayko/git-sh.git $@
-	cd $@; \
-	make
 
 clean:
 	rm -rf build-*
