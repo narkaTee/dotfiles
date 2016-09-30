@@ -1,3 +1,6 @@
+if &diff
+    finish
+endif
 
 set laststatus=2
 
