@@ -117,11 +117,11 @@ _prompt_git() {
         git rev-parse --short HEAD 2>/dev/null
     )
     branch=${branch#refs/heads/}
-    _apply_color "$branch" "yellow reverse"
+    _apply_color "$branch" "yellow bold"
 
     upstream=$(_git_upstream_status)
     [ ! -z "$upstream" ] &&
-        _apply_color " $upstream" "yellow bold"
+        _apply_color " $upstream" "yellow"
 
     state=$(_git_state)
     [ ! -z "$state" ] &&
