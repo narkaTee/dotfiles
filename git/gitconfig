@@ -6,6 +6,7 @@
     s = "status -s"
     d = "diff"
     t = "diff --cached"
+    co = "commit"
     pff = "pull --ff-only"
     pr = "pull --rebase"
 [init]
