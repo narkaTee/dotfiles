@@ -86,7 +86,7 @@ _git_upstream_status() {
             status="u+${diff#*,}-${diff%,*}"
             ;;
     esac
-    printf $status
+    printf "$status"
 }
 
 # Get repo state
