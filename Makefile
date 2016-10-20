@@ -1,10 +1,12 @@
 .PHONY: install \
 	install-bash \
 	install-git \
+	install-tmux \
 	clean
 
 install: install-bash \
 	install-git \
+	install-tmux
 
 install-bash: test-bash
 	install -m 0755 -d -- \
@@ -28,6 +30,9 @@ install-git:
 	cp -Trf git/git_template/ "$(HOME)/git_template"
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
 	git config --global --add include.path "$(HOME)/.gitconfig.d/.gitconfig"
+
+install-tmux:
+	install -pm 0644 -- tmux/tmux.conf "$(HOME)/.tmux.conf"
 
 clean:
 	rm -rf build-*
