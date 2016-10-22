@@ -19,6 +19,9 @@ set number
 " show commands as I type them
 set showcmd
 
+" Always show tab line
+set showtabline=2
+
 " set a color column at 80 chars
 set colorcolumn=72
 
