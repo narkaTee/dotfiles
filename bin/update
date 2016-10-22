@@ -48,7 +48,8 @@ puts "-" * 20
 {
     :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git",
     :sensible => "git://github.com/tpope/vim-sensible.git",
-    :sorround => "git://github.com/tpope/vim-surround.git"
+    :sorround => "git://github.com/tpope/vim-surround.git",
+    :sleuth => "git://github.com/tpope/vim-sleuth.git"
 }.each do |name, url|
     puts "- checking #{name}"
     git url, bundle_install_dir(VIM_BUNDLE, name)
