@@ -31,8 +31,12 @@ install-git:
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
 	git config --global --add include.path "$(HOME)/.gitconfig.d/.gitconfig"
 
-install-tmux:
+install-tmux: install-tmux-plugins
 	install -pm 0644 -- tmux/tmux.conf "$(HOME)/.tmux.conf"
+
+install-tmux-plugins:
+	install -m 0755 -d -- "$(HOME)/.tmux/plugins/"
+	cp -Trf tmux/plugins/ "$(HOME)/.tmux/plugins/"
 
 clean:
 	rm -rf build-*
