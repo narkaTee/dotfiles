@@ -9,6 +9,7 @@
     co = "commit"
     pff = "pull --ff-only"
     pr = "pull --rebase"
+    github = "!f(){ git config user.name narkaTee; git config user.email narkaTee@users.noreply.github.com; };f"
 [init]
     templatedir = ~/.git_template
 [rebase]
