@@ -1,6 +1,11 @@
 # set PATH to include the private bin if it exists
 if [ -d "$HOME/bin" ]; then
-    PATH="$HOME/bin:$PATH"
+    PATH="$PATH:$HOME/bin"
+fi
+
+# set PATH to include the global composer bin if it exists
+if [ -d "$HOME/.composer/vendor/bin" ]; then
+    PATH="$PATH:$HOME/.composer/vendor/bin"
 fi
 
 # source local bash_profile if exists
