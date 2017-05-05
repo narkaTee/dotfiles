@@ -1,6 +1,6 @@
 # Prep return status variable so we can use arithmetic on it
 declare -i CMD_RET
-PROMPT_COMMAND='CMD_RET=$?;'
+PROMPT_COMMAND='CMD_RET=$?;'"${PROMPT_COMMAND}"
 # trim path to 4 elements
 PROMPT_DIRTRIM=4
 
@@ -157,7 +157,9 @@ prompt() {
         green="\001$(tput setaf 2)\002"
     case $1 in
         on)
-            PS1='$(_prompt_git)'
+            _PS1_OLD=$PS1
+            PS1="$(_prompt_statusline)"
+            PS1+='$(_prompt_git)'
             PS1+='$(_prompt_ret_code)'
             PS1+='\u@\h:'
             PS1+=$green
@@ -167,6 +169,10 @@ prompt() {
             PS1+='\$ '
         ;;
         off)
+            if [ ! -z $_PS1_OLD ]; then
+                PS1=$_PS1_OLD
+                return
+            fi
             PS1='\u@\h:\w\$ '
         ;;
         *)
@@ -174,6 +180,19 @@ prompt() {
             return 1
         ;;
     esac
+}
+
+_prompt_statusline() {
+    # silently try to fetch terminal sequences...
+    {
+        local tostatus="$(tput tsl)"
+        local fromstatus="$(tput fsl)"
+    } > /dev/null 2>&1
+    #... and return if they are not available
+    if [ -z $tostatus ] || [ -z $fromstatus ]; then
+        return;
+    fi
+    echo "${tostatus}\u@\h${fromstatus}"
 }
 
 # enable custom prompt
