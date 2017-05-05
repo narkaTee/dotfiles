@@ -6,7 +6,7 @@ function composer() {
         disableXdebug="php5dismod -s cli xdebug"
         enableXdebug="php5enmod -s cli xdebug"
         if [ "$(id -u)" -ne 0 ]; then
-            if ! which sudo; then
+            if ! hash sudo 2>/dev/null; then
                 echo "We're not root and sudo is not available. Unable to disable xdebug" >&2
             fi
             disableXdebug="sudo ${disableXdebug}"
