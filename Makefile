@@ -27,7 +27,7 @@ install-git:
 	install -d -m 0755 -- "$(HOME)/.gitconfig.d"
 	install -pm 0644 -- git/gitconfig "$(HOME)/.gitconfig.d/.gitconfig"
 	install -d -m 755 -- "$(HOME)/.git_template"
-	cp -Trf git/git_template/ "$(HOME)/git_template"
+	cp -Trf git/git_template/ "$(HOME)/.git_template"
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
 	git config --global --add include.path "$(HOME)/.gitconfig.d/.gitconfig"
 
