@@ -13,11 +13,6 @@ if [ -f "$HOME/.bash_profile.local" ]; then
     . "$HOME/.bash_profile.local"
 fi
 
-# run chef shell-init if chef is installed
-if hash chef 2>/dev/null; then
-    eval "$(chef shell-init bash)"
-fi
-
 # source interactive bash config
 if [ -f "$HOME/.bashrc" ]; then
     . "$HOME/.bashrc"
