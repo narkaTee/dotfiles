@@ -7,5 +7,5 @@ if [ ! -z $TMUX ] && hash tmux 2>/dev/null; then
         fi
     }
 
-    PROMPT_COMMAND="_refresh_env_from_tmux;${PROMPT_COMMAND}"
+    PROMPT_COMMAND="${PROMPT_COMMAND}_refresh_env_from_tmux;"
 fi
