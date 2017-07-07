@@ -1,3 +1,4 @@
+# vim: ft=sh
 # set PATH to include the private bin if it exists
 if [ -d "$HOME/bin" ]; then
     PATH="$PATH:$HOME/bin"
