@@ -13,10 +13,10 @@ def git(url, location)
     if File.directory?(location + ".git")
         puts "trying to update via git pull"
         FileUtils.cd location do
-            system "git pull"
+            puts `git pull`
         end
     else
-        system "git clone #{url} #{location}"
+        puts `git clone #{url} #{location}`
     end
 end
 
@@ -24,7 +24,7 @@ def download(url, target_path)
     FileUtils.mkdir_p target_path
     filename = File.basename(url)
     full_target = Pathname.new(target_path) + filename
-    system "curl -Lso #{full_target} #{url}"
+    puts `curl -LSso #{full_target} #{url}`
 end
 
 def bundle_install_dir(bundledir, bundle)
