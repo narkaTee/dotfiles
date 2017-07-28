@@ -1,4 +1,7 @@
-silent! execute pathogen#infect()
+if v:version < 800
+    silent! execute pathogen#infect()
+endif
+" Load sensible before  the custom settings
 runtime! plugin/sensible.vim
 
 source $HOME/.vim/custom/functions.vim

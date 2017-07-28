@@ -6,7 +6,7 @@ require 'fileutils'
 ENV.has_key? 'HOME' or raise "'HOME' Environment variable is not available"
 ENV['HOME'].length > 0 or raise "'HOME' Environment variable is empty"
 
-VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'bundle'
+VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'pack' + 'my-plugins' + 'start'
 VIM_AUTOLOAD = Pathname.new( ENV['HOME'] ) + '.vim' + 'autoload'
 
 def git(url, location)
