@@ -169,8 +169,8 @@ prompt() {
             PS1+='\$ '
         ;;
         off)
-            if [ ! -z $_PS1_OLD ]; then
-                PS1=$_PS1_OLD
+            if [ ! -z "$_PS1_OLD" ]; then
+                PS1="$_PS1_OLD"
                 return
             fi
             PS1='\u@\h:\w\$ '
