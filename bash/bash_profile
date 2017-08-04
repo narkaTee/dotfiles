@@ -9,6 +9,14 @@ if [ -d "$HOME/.composer/vendor/bin" ]; then
     PATH="$PATH:$HOME/.composer/vendor/bin"
 fi
 
+# Setup EDITOR and VISUAL
+if hash vim 2>/dev/null; then
+    export EDITOR="vim"
+    export VISUAL="$EDITOR"
+else
+    echo "Dude, no vim?!"
+fi
+
 # source local bash_profile if exists
 if [ -f "$HOME/.bash_profile.local" ]; then
     . "$HOME/.bash_profile.local"
