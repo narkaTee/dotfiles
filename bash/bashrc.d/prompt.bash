@@ -192,7 +192,7 @@ _prompt_statusline() {
     if [ -z $tostatus ] || [ -z $fromstatus ]; then
         return;
     fi
-    echo "${tostatus}\u@\h${fromstatus}"
+    echo "\001${tostatus}\u@\h${fromstatus}\002"
 }
 
 # enable custom prompt
