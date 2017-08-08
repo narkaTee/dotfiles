@@ -22,6 +22,11 @@ if [ -f "$HOME/.bash_profile.local" ]; then
     . "$HOME/.bash_profile.local"
 fi
 
+# start ssh-pageant (cygwin) if it exists
+if hash ssh-pageant 2>/dev/null; then
+    eval $(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")
+fi
+
 # source interactive bash config
 if [ -f "$HOME/.bashrc" ]; then
     . "$HOME/.bashrc"
