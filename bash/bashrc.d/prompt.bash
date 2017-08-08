@@ -152,14 +152,35 @@ _prompt_git() {
     printf "└"
 }
 
+# try to determinate the git performance
+_git_speed() {
+    local git_start=$(date +%s%N)
+    git rev-parse --is-inside-work-tree &> /dev/null
+    local git_time=$((($(date +%s%N) - $git_start)/1000000))
+    printf $git_time
+}
+
 prompt() {
     local reset="\001$(tput sgr0)\002" \
         green="\001$(tput setaf 2)\002"
     case $1 in
         on)
             _PS1_OLD=$PS1
+            _GIT_SLOW="no"
+            local git_speed=$(_git_speed)
+
+            # the value should be around 2-10ms on a performant system
+            if [[ $git_speed -gt 80 ]]; then
+                _GIT_SLOW="yes"
+                _GIT_SPEED="$git_speed ms"
+            fi
+
             PS1="$(_prompt_statusline)"
-            PS1+='$(_prompt_git)'
+            # If git is slow skip the git prompt.
+            # Can be the case on: raspberry pi, cygwin + BLODA
+            if [ $_GIT_SLOW = 'no'  ]; then
+                PS1+='$(_prompt_git)'
+            fi
             PS1+='$(_prompt_ret_code)'
             PS1+='\u@\h:'
             PS1+=$green
