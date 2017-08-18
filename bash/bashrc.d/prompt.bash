@@ -1,8 +1,8 @@
 # Prep return status variable so we can use arithmetic on it
 declare -i CMD_RET
 PROMPT_COMMAND='CMD_RET=$?;'"${PROMPT_COMMAND}"
-# trim path to 4 elements
-PROMPT_DIRTRIM=4
+# trim path to 3 elements
+PROMPT_DIRTRIM=3
 
 # Output text with terminal ctrl "format" and reset it
 _output_with_format() {
@@ -149,7 +149,29 @@ _prompt_git() {
     #  we'll just append the 'non-printable' markers behind it...
     printf "\n\001\002"
     # some fancyness
-    printf "└"
+    if _term_is_narrow; then
+        printf "├"
+    else
+        printf "└"
+    fi
+}
+
+_term_is_narrow() {
+    [ ! -z "$COLUMNS" ] && [[ $COLUMNS -lt 100 ]]
+}
+
+# The prompt can get very cramped on a narrow terminal.
+# let's try to get some room by putting the prompt to the next line
+_promp_small_term_nl() {
+    if ! _term_is_narrow; then
+        return
+    fi
+
+    if [ $_GIT_SLOW = 'no'  ]; then
+        printf "\n└"
+    else
+        printf "\n\001\002"
+    fi
 }
 
 # try to determinate the git performance
@@ -186,6 +208,7 @@ prompt() {
             PS1+=$green
             PS1+='\w'
             PS1+=$reset
+            PS1+='$(_promp_small_term_nl)'
             PS1+='$(_prompt_num_jobs)'
             PS1+='\$ '
         ;;
