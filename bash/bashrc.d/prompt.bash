@@ -4,40 +4,6 @@ PROMPT_COMMAND='CMD_RET=$?;'"${PROMPT_COMMAND}"
 # trim path to 3 elements
 PROMPT_DIRTRIM=3
 
-# Output text with terminal ctrl "format" and reset it
-_output_with_format() {
-    local output="$1" format="$2" reset="\001$(tput sgr0)\002"
-    printf "$format$output$reset"
-}
-
-# Output test with a color
-_apply_color() {
-    local output="$1" color="$2"
-    color=$(_get_color "$2")
-    _output_with_format "$output" "$color"
-}
-
-# Get a ansi color and style
-_get_color() {
-    local color=""
-    for part in $1; do
-        case "$part" in
-            red) color+=$(tput setaf 1) ;;
-            green) color+=$(tput setaf 2) ;;
-            yellow) color+=$(tput setaf 3) ;;
-            blue) color+=$(tput setaf 4) ;;
-            pink) color+=$(tput setaf 5) ;;
-            cyan) color+=$(tput setaf 6) ;;
-            white) color+=$(tput setaf 7) ;;
-            gray) color+=$(tput setaf 8) ;;
-            bold) color+=$(tput bold) ;;
-            reverse) color+=$(tput rev) ;;
-            *) printf '_get_color: unknown color or style "%s"' "$1"; return 1 ;;
-        esac
-    done
-    printf "\001$color\002"
-}
-
 # print the return code if not zero
 _prompt_ret_code() {
     if ((CMD_RET > 0 )); then
@@ -58,78 +24,25 @@ _prompt_num_jobs() {
     fi
 }
 
-# Checks whether this is a git repo
-_is_git() {
-    [[ -n $(git rev-parse --is-inside-work-tree 2>/dev/null) ]]
-}
-
-# Get the upstream status
-_git_upstream_status() {
-    _is_git || return
-
-    status=""
-
-    local diff="$(git rev-list --count --left-right @{u}...HEAD 2>/dev/null | sed 's/\t/,/g')"
-    case "$diff" in
-        "") # no upstream or HEAD detached
-            ;;
-        "0,0") # no divergence
-            status="u="
-            ;;
-        "0,"*) # ahead of upstream
-            status="u+${diff#0,}"
-            ;;
-        *",0") # behind of upstream
-            status="u-${diff%,0}"
-            ;;
-        *) # both
-            status="u+${diff#*,}-${diff%,*}"
-            ;;
-    esac
-    printf "$status"
-}
-
-# Get repo state
-_git_state() {
-    _is_git || return
-
-    gitdir="$(git rev-parse --show-toplevel 2>/dev/null)/.git"
-
-    status=""
-    if [ -d "$gitdir/rebase-merge" -o -d "$gitdir/rebase-apply" ]; then
-        status="rebase"
-    elif [ -f "$gitdir/MERGE_HEAD" ]; then
-        status="merge"
-    elif [ -f "$gitdir/CHERRY_PICK_HEAD" ]; then
-        status="cherry-pick"
-    fi
-    printf "$status"
-}
-
 _prompt_git() {
     _is_git || return
 
     # some fancyness
     printf '┌'
 
-    local branch=$(
-        git symbolic-ref -q HEAD 2>/dev/null ||
-        git rev-parse --short HEAD 2>/dev/null
-    )
-    branch=${branch#refs/heads/}
+    branch=$(_prompt_git_branch)
     _apply_color "$branch" "yellow bold"
 
-    upstream=$(_git_upstream_status)
+    upstream=$(_prompt_git_upstream_status)
     [ ! -z "$upstream" ] &&
         _apply_color " $upstream" "yellow"
 
-    state=$(_git_state)
+    state=$(_prompt_git_state)
     [ ! -z "$state" ] &&
         _apply_color " ($state)" "red"
 
     # get local repo name
-    repopath=$(git rev-parse --show-toplevel 2>/dev/null)
-    reponame=${repopath##*/}
+    reponame=$(_prompt_git_reponame)
     [ ! -z "$reponame" ] &&
         _apply_color " $reponame" "blue bold"
 
@@ -156,10 +69,6 @@ _prompt_git() {
     fi
 }
 
-_term_is_narrow() {
-    [ ! -z "$COLUMNS" ] && [[ $COLUMNS -lt 100 ]]
-}
-
 # The prompt can get very cramped on a narrow terminal.
 # let's try to get some room by putting the prompt to the next line
 _promp_small_term_nl() {
@@ -174,14 +83,6 @@ _promp_small_term_nl() {
     fi
 }
 
-# try to determinate the git performance
-_git_speed() {
-    local git_start=$(date +%s%N)
-    git rev-parse --is-inside-work-tree &> /dev/null
-    local git_time=$((($(date +%s%N) - $git_start)/1000000))
-    printf $git_time
-}
-
 prompt() {
     local reset="\001$(tput sgr0)\002" \
         green="\001$(tput setaf 2)\002"
@@ -189,7 +90,7 @@ prompt() {
         on)
             _PS1_OLD=$PS1
             _GIT_SLOW="no"
-            local git_speed=$(_git_speed)
+            local git_speed=$(_prompt_git_speed)
 
             # the value should be around 2-10ms on a performant system
             if [[ $git_speed -gt 80 ]]; then

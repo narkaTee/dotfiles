@@ -8,7 +8,20 @@ install: install-bash \
 	install-git \
 	install-tmux
 
-install-bash: test-bash
+install-sh: test-dash
+	install -m 0755 -d -- "$(HOME)/.config/shrc.d"
+	install -pm 0644 -- sh/shrc.d/* "$(HOME)/.config/shrc.d"
+
+test-dash:
+	@for file in sh/shrc.d/*.sh; do \
+		if [ -f "$$file" ] && ! dash -n "$$file"; then \
+			exit 1; \
+		fi \
+	done
+	@echo "POSIX-Scripts successfully parsed"
+
+install-bash: test-bash \
+	install-sh
 	install -m 0755 -d -- \
 		"$(HOME)/.bashrc.d"
 	install -pm 0644 -- bash/bashrc "$(HOME)/.bashrc"
@@ -16,12 +29,12 @@ install-bash: test-bash
 	install -pm 0644 -- bash/bash_profile "$(HOME)/.bash_profile"
 
 test-bash:
-	@for file in bash/* bash/bashrc.d/*; do \
+	@for file in bash/* bash/bashrc.d/*.bash; do \
 		if [ -f "$$file" ] && ! bash -n "$$file"; then \
 			exit 1; \
 		fi \
 	done
-	@echo "Scripts successfully parsed"
+	@echo "BASH-Scripts successfully parsed"
 
 install-git:
 	install -d -m 0755 -- "$(HOME)/.gitconfig.d"

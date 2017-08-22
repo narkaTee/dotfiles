@@ -4,12 +4,18 @@ case $- in
     *) return ;;
 esac
 
-# Load additional scripts
+# Load posix scripts
+if [ -d "$HOME/.config/shrc.d/" ]; then
+    for file in "$HOME"/.config/shrc.d/* ; do
+        . "$file"
+    done
+    unset -v file
+fi
+
+# Load bash scripts
 if [ -d "$HOME/.bashrc.d" ] ; then
-    for file in "$HOME"/.bashrc.d/*.bash ; do
-        if [ -e "$file" ] ; then
-            . "$file"
-        fi
+    for file in "$HOME"/.bashrc.d/* ; do
+        . "$file"
     done
     unset -v file
 fi
