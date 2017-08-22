@@ -76,7 +76,7 @@ _promp_small_term_nl() {
         return
     fi
 
-    if [ $_GIT_SLOW = 'no'  ]; then
+    if [ $_GIT_SLOW = 'no' ] && _is_git ; then
         printf "\n└"
     else
         printf "\n\001\002"
