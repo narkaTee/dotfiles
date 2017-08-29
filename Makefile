@@ -9,6 +9,7 @@ install: install-bash \
 	install-tmux
 
 install-sh: test-dash
+	rm -rf "$(HOME)/.config/shrc.d"
 	install -m 0755 -d -- "$(HOME)/.config/shrc.d"
 	install -pm 0644 -- sh/shrc.d/* "$(HOME)/.config/shrc.d"
 
@@ -22,8 +23,8 @@ test-dash:
 
 install-bash: test-bash \
 	install-sh
-	install -m 0755 -d -- \
-		"$(HOME)/.bashrc.d"
+	rm -rf "$(HOME)/.bashrc.d"
+	install -m 0755 -d -- "$(HOME)/.bashrc.d"
 	install -pm 0644 -- bash/bashrc "$(HOME)/.bashrc"
 	install -pm 0644 -- bash/bashrc.d/* "$(HOME)/.bashrc.d"
 	install -pm 0644 -- bash/bash_profile "$(HOME)/.bash_profile"
@@ -37,8 +38,10 @@ test-bash:
 	@echo "BASH-Scripts successfully parsed"
 
 install-git:
+	rm -rf "$(HOME)/.gitconfig.d"
 	install -d -m 0755 -- "$(HOME)/.gitconfig.d"
 	install -pm 0644 -- git/gitconfig "$(HOME)/.gitconfig.d/.gitconfig"
+	rm -rf "$(HOME)/.git_template"
 	install -d -m 755 -- "$(HOME)/.git_template"
 	cp -Trf git/git_template/ "$(HOME)/.git_template"
 	git config --global --get-all include.path "$(HOME)/.gitconfig.d/.gitconfig" > /dev/null || \
@@ -48,8 +51,6 @@ install-tmux: install-tmux-plugins
 	install -pm 0644 -- tmux/tmux.conf "$(HOME)/.tmux.conf"
 
 install-tmux-plugins:
+	rm -rf "$(HOME)/.tmux/plugins/"
 	install -m 0755 -d -- "$(HOME)/.tmux/plugins/"
 	cp -Trf tmux/plugins/ "$(HOME)/.tmux/plugins/"
-
-clean:
-	rm -rf build-*
