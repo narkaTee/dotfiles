@@ -8,7 +8,6 @@
     t = "diff --cached"
     co = "commit"
     pff = "pull --ff-only"
-    pr = "pull --rebase"
     chmod = "update-index --chmod"
     github = "!f(){ git config user.name narkaTee; git config user.email narkaTee@users.noreply.github.com; };f"
 [log]
@@ -19,3 +18,5 @@
     autosquash = true
 [push]
     default = upstream
+[pull]
+    rebase = true
