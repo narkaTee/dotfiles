@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Usage: git put [remote branch, defaults to current branch name] [remote, defaults to "origin"]
+
+if [ ! -n "$(git rev-parse --is-inside-work-tree 2>/dev/null)" ]; then
+    >&2 echo "Not a git repository"
+    exit 1
+fi
+current_branch=$(git symbolic-ref -q HEAD 2>/dev/null)
+current_branch=${current_branch#refs/heads/}
+input_branch=${1:-}
+remote=${2:-origin}
+
+if [ -z "$current_branch" ] && [ -z "$input_branch" ]; then
+    >&2 echo "No branch given and current branch could not be auto detected!"
+    exit 1
+fi
+
+branch=${input_branch:-$current_branch}
+
+git push --set-upstream "$remote" "$branch"
