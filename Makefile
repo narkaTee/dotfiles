@@ -38,6 +38,9 @@ test-bash:
 	@echo "BASH-Scripts successfully parsed"
 
 install-git:
+	rm -rf "$(HOME)/.config/git-scripts"
+	install -m 0755 -d -- "$(HOME)/.config/git-scripts"
+	cp -Trf git/git-scripts/ "$(HOME)/.config/git-scripts"
 	rm -rf "$(HOME)/.gitconfig.d"
 	install -d -m 0755 -- "$(HOME)/.gitconfig.d"
 	install -pm 0644 -- git/gitconfig "$(HOME)/.gitconfig.d/.gitconfig"
