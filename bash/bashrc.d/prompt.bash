@@ -19,6 +19,13 @@ _prompt_num_jobs() {
         ((jobcount++))
     done < <(jobs -p)
 
+    # Tets if the command hook is active
+    if grep "_z --add" <<< "$PROMPT_COMMAND" >/dev/null; then
+        # the command hook runs as a background job, we want to ignore it
+        # dirty but fast...
+        ((jobcount--))
+    fi
+
     if ((jobcount > 0)); then
         printf '[%u]' "$jobcount"
     fi
