@@ -40,3 +40,5 @@ set modeline " enable modeline parsing
 " show tabs and trailing whitespace as well in list mode
 set listchars=tab:>-,trail:~
 
+" no backups
+set nobackup
