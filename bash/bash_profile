@@ -22,11 +22,6 @@ else
     echo "Dude, no vim?!"
 fi
 
-# source local bash_profile if exists
-if [ -f "$HOME/.bash_profile.local" ]; then
-    . "$HOME/.bash_profile.local"
-fi
-
 # start auth agent
 # I'm going to be a bit dirty here:
 # Instead of checking for cygwin properly just checking for ssh-pageant
@@ -46,6 +41,11 @@ else
             ssh-add
         fi
     fi
+fi
+
+# source local bash_profile if exists
+if [ -f "$HOME/.bash_profile.local" ]; then
+    . "$HOME/.bash_profile.local"
 fi
 
 # source interactive bash config
