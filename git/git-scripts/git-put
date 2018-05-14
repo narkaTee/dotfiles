@@ -18,3 +18,4 @@ fi
 branch=${input_branch:-$current_branch}
 
 git push --set-upstream "$remote" "$branch"
+exit $?

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Usage: git fix [commit to fix, defaults to last commit]
+
+if [ ! -n "$(git rev-parse --is-inside-work-tree 2>/dev/null)" ]; then
+    >&2 echo "Not a git repository"
+    exit 1
+fi
+commit=${1:-}
+
+if [ -z "$commit" ]; then
+    git commit --amend --no-edit
+    exit $?
+fi
+
+git commit --fixup "$commit"
+exit $?

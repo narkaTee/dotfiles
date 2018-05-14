@@ -7,7 +7,6 @@
     d = "diff"
     t = "diff --cached"
     co = "commit"
-    fix = "commit --amend --no-edit"
     pff = "pull --ff-only"
     chmod = "update-index --chmod"
     ls = "log --oneline"
