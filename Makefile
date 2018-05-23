@@ -1,7 +1,11 @@
 .PHONY: install \
+	test-sh \
+	install-sh \
+	test-bash \
 	install-bash \
 	install-git \
 	install-tmux \
+	install-tmux-plugins \
 	install-mintty \
 	clean
 
@@ -10,12 +14,12 @@ install: install-bash \
 	install-tmux \
 	install-mintty
 
-install-sh: test-dash
+install-sh: test-sh
 	rm -rf "$(HOME)/.config/shrc.d"
 	install -m 0755 -d -- "$(HOME)/.config/shrc.d"
 	install -pm 0644 -- sh/shrc.d/* "$(HOME)/.config/shrc.d"
 
-test-dash:
+test-sh:
 	@for file in sh/shrc.d/*.sh; do \
 		if [ -f "$$file" ] && ! dash -n "$$file"; then \
 			exit 1; \
