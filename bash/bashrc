@@ -4,6 +4,9 @@ case $- in
     *) return ;;
 esac
 
+# Disable XON/XOFF flow control
+stty -ixon
+
 # Load posix scripts
 if [ -d "$HOME/.config/shrc.d/" ]; then
     for file in "$HOME"/.config/shrc.d/* ; do
