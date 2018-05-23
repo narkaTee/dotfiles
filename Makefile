@@ -2,11 +2,13 @@
 	install-bash \
 	install-git \
 	install-tmux \
+	install-mintty \
 	clean
 
 install: install-bash \
 	install-git \
-	install-tmux
+	install-tmux \
+	install-mintty
 
 install-sh: test-dash
 	rm -rf "$(HOME)/.config/shrc.d"
@@ -57,3 +59,8 @@ install-tmux-plugins:
 	rm -rf "$(HOME)/.tmux/plugins/"
 	install -m 0755 -d -- "$(HOME)/.tmux/plugins/"
 	cp -Trf tmux/plugins/ "$(HOME)/.tmux/plugins/"
+
+install-mintty:
+	if hash cygcheck.exe 2> /dev/null; then \
+		cp -f "mintty/minttyrc" "$(HOME)/.minttyrc"; \
+	fi
