@@ -32,7 +32,10 @@ _prompt_num_jobs() {
 }
 
 _prompt_git() {
-    _is_git || return
+    if ! _is_git; then
+        printf '┌'
+        return
+    fi
 
     # some fancyness
     printf '┌'
@@ -69,25 +72,7 @@ _prompt_git() {
     #  we'll just append the 'non-printable' markers behind it...
     printf "\n\001\002"
     # some fancyness
-    if _term_is_narrow; then
-        printf "├"
-    else
-        printf "└"
-    fi
-}
-
-# The prompt can get very cramped on a narrow terminal.
-# let's try to get some room by putting the prompt to the next line
-_promp_small_term_nl() {
-    if ! _term_is_narrow; then
-        return
-    fi
-
-    if [ $_GIT_SLOW = 'no' ] && _is_git ; then
-        printf "\n└"
-    else
-        printf "\n\001\002"
-    fi
+    printf "├"
 }
 
 prompt() {
@@ -110,13 +95,15 @@ prompt() {
             # Can be the case on: raspberry pi, cygwin + BLODA
             if [ $_GIT_SLOW = 'no'  ]; then
                 PS1+='$(_prompt_git)'
+            else
+                PS1+='┌'
             fi
             PS1+='$(_prompt_ret_code)'
             PS1+='\u@\h:'
             PS1+=$green
             PS1+='\w'
             PS1+=$reset
-            PS1+='$(_promp_small_term_nl)'
+            PS1+='\n└'
             PS1+='$(_prompt_num_jobs)'
             PS1+='\$ '
         ;;
