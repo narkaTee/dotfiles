@@ -12,6 +12,7 @@
     ls = "log --oneline"
     new = !git log $1@{1}..$1@{0} "$@"
     github = "!f(){ git config user.name narkaTee; git config user.email narkaTee@users.noreply.github.com; };f"
+    desc = "describe --tags --always --first-parent"
 [log]
     decorate = auto
 [init]
