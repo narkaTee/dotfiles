@@ -22,6 +22,15 @@ else
     echo "Dude, no vim?!"
 fi
 
+# Predictable ssh auth sock
+if [ ! -z "$SSH_AUTH_SOCK" ]; then
+    permanent="$HOME/.ssh_auth_sock"
+    if [ "$SSH_AUTH_SOCK" != "$permanent" ]; then
+        ln -sf "$SSH_AUTH_SOCK" "$permanent"
+        export SSH_AUTH_SOCK="$permanent"
+    fi
+fi
+
 # start auth agent
 # I'm going to be a bit dirty here:
 # Instead of checking for cygwin properly just checking for ssh-pageant
