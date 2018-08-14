@@ -13,6 +13,9 @@
     new = !git log $1@{1}..$1@{0} "$@"
     github = "!f(){ git config user.name narkaTee; git config user.email narkaTee@users.noreply.github.com; };f"
     desc = "describe --tags --always --first-parent"
+    pushfl = "push --force-with-lease"
+    mergeff = "merge --ff-only"
+    mergec = "merge --no-ff"
 [log]
     decorate = auto
 [init]
