@@ -26,3 +26,5 @@
     default = upstream
 [pull]
     rebase = true
+[remote "origin"]
+    prune = true
