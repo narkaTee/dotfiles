@@ -30,3 +30,13 @@ fi
 
 # Add RVM to PATH
 export PATH="$PATH:$HOME/.rvm/bin"
+
+# Add NVM
+export NVM_DIR="$HOME/.nvm"
+# use ifs to prevent non zero exit state if nvm is not installed
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    \. "$NVM_DIR/nvm.sh"  # This loads nvm
+fi
+if [ -s "$NVM_DIR/bash_completion" ]; then
+    \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+fi
