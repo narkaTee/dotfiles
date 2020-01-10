@@ -7,12 +7,14 @@
 	install-tmux \
 	install-tmux-plugins \
 	install-mintty \
+	install-ideavim \
 	clean
 
 install: install-bash \
 	install-git \
 	install-tmux \
-	install-mintty
+	install-mintty \
+	install-ideavim
 
 install-sh: test-sh
 	rm -rf "$(HOME)/.config/shrc.d"
@@ -68,3 +70,6 @@ install-mintty:
 	if hash cygcheck.exe 2> /dev/null; then \
 		cp -f "mintty/minttyrc" "$(HOME)/.minttyrc"; \
 	fi
+
+install-ideavim:
+	install -pm 0644 -- .ideavimrc "$(HOME)/.ideavimrc"
