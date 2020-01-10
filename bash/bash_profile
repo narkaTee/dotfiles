@@ -1,4 +1,4 @@
-# vim: ft=sh
+# vim: ft=bash
 # set PATH to include the private bin if it exists
 if [ -d "$HOME/bin" ]; then
     PATH="$PATH:$HOME/bin"
@@ -22,6 +22,7 @@ else
     echo "Dude, no vim?!"
 fi
 
+
 # Predictable ssh auth sock
 if [ ! -z "$SSH_AUTH_SOCK" ]; then
     permanent="$HOME/.ssh_auth_sock"
@@ -31,14 +32,15 @@ if [ ! -z "$SSH_AUTH_SOCK" ]; then
     fi
 fi
 
-# start auth agent
-# I'm going to be a bit dirty here:
-# Instead of checking for cygwin properly just checking for ssh-pageant
-if hash ssh-pageant 2>/dev/null; then
-    # start ssh-pageant (cygwin)
+setup_gnome_kr() {
+    eval $(gnome-keyring-daemon -s)
+}
+
+setup_ssh_pagent() {
     eval $(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")
-else
-    # ssh-pagent not found use standard utils
+}
+
+setup_cli_agent() {
     ssh-add -l &>/dev/null
     if [ "$?" == 2 ]; then
         test -r ~/.ssh-agent && eval "$(<~/.ssh-agent)" >/dev/null
@@ -49,6 +51,20 @@ else
             eval "$(<~/.ssh-agent)" >/dev/null
             ssh-add
         fi
+    fi
+}
+# start auth agent
+# I'm going to be a bit dirty here:
+# Instead of checking for cygwin properly just checking for ssh-pageant
+if hash ssh-pageant 2>/dev/null; then
+    # start ssh-pageant (cygwin)
+    setup_ssh_pagent
+else
+    # ssh-pagent not found use standard utils
+    if hash gnome-keyring-daemon; then
+        setup_gnome_kr
+    else
+        setup_cli_agent
     fi
 fi
 
@@ -67,3 +83,5 @@ fi
 if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
     source "$HOME/.rvm/scripts/rvm"
 fi
+
+export PATH="$HOME/.cargo/bin:$PATH"
