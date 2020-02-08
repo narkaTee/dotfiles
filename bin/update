@@ -49,7 +49,10 @@ puts "-" * 20
     :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git",
     :sensible => "git://github.com/tpope/vim-sensible.git",
     :sorround => "git://github.com/tpope/vim-surround.git",
-    :sleuth => "git://github.com/tpope/vim-sleuth.git"
+    :sleuth => "git://github.com/tpope/vim-sleuth.git",
+    :vim_airline => "git://github.com/vim-airline/vim-airline",
+    :vim_airline_themes => "git://github.com/vim-airline/vim-airline-themes",
+    :vim_fugitive => "git://github.com/tpope/vim-fugitive.git"
 }.each do |name, url|
     puts "- checking #{name}"
     git url, bundle_install_dir(VIM_BUNDLE, name)
