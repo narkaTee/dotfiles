@@ -5,7 +5,7 @@ case $- in
 esac
 
 # Disable XON/XOFF flow control
-stty -ixon
+test -z "$ZSH_VERSION" && stty -ixon
 
 # Load posix scripts
 if [ -d "$HOME/.config/shrc.d/" ]; then

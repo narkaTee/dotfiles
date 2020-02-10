@@ -1,3 +1,5 @@
+test ! -z "$ZSH_VERSION" && return
+
 # Prep return status variable so we can use arithmetic on it
 declare -i CMD_RET
 PROMPT_COMMAND='CMD_RET=$?;'"${PROMPT_COMMAND}"

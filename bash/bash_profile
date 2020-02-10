@@ -33,7 +33,7 @@ if [ ! -z "$SSH_AUTH_SOCK" ]; then
 fi
 
 setup_gnome_kr() {
-    eval $(gnome-keyring-daemon -s)
+    export $(gnome-keyring-daemon -s)
 }
 
 setup_ssh_pagent() {
