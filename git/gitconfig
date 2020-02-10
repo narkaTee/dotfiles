@@ -31,3 +31,5 @@
     rebase = true
 [remote "origin"]
     prune = true
+[core]
+    pager = less -RXF
