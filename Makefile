@@ -8,13 +8,15 @@
 	install-tmux-plugins \
 	install-mintty \
 	install-ideavim \
+	install-zsh-dotfiles \
 	clean
 
 install: install-bash \
 	install-git \
 	install-tmux \
 	install-mintty \
-	install-ideavim
+	install-ideavim \
+	install-zsh-dotfiles
 
 install-sh: test-sh
 	rm -rf "$(HOME)/.config/shrc.d"
@@ -73,3 +75,7 @@ install-mintty:
 
 install-ideavim:
 	install -pm 0644 -- .ideavimrc "$(HOME)/.ideavimrc"
+
+install-zsh-dotfiles:
+	install -pm 0644 -- zsh/zshrc "$(HOME)/.zshrc"
+	install -pm 0644 -- zsh/p10k.zsh "$(HOME)/.p10k.zsh"
