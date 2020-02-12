@@ -52,7 +52,8 @@ puts "-" * 20
     :sleuth => "git://github.com/tpope/vim-sleuth.git",
     :vim_airline => "git://github.com/vim-airline/vim-airline",
     :vim_airline_themes => "git://github.com/vim-airline/vim-airline-themes",
-    :vim_fugitive => "git://github.com/tpope/vim-fugitive.git"
+    :vim_fugitive => "git://github.com/tpope/vim-fugitive.git",
+    :vim_multiple_cursor => "git@github.com:terryma/vim-multiple-cursors.git"
 }.each do |name, url|
     puts "- checking #{name}"
     git url, bundle_install_dir(VIM_BUNDLE, name)
