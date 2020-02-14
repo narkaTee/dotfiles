@@ -55,6 +55,7 @@ nnoremap <Leader>h :action Replace<CR>
 vnoremap <Leader>h :action Replace<CR>
 nnoremap <Leader>f :action Find<CR>
 nnoremap <Leader>c :action GotoClass<CR>
+nnoremap <Leader>a :action GotoAction<CR>
 nnoremap <Leader>t :action GotoTest<CR>
 nnoremap <Leader>b :action GotoDeclaration<CR>
 nnoremap <Leader>q :action QuickJavaDoc<CR>
