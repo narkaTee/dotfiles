@@ -36,15 +36,8 @@ module Cfg
   def self.file(permissions, src: nil, dst: nil, dir: false, diff: true)
     dst = dst || "#{HOME}/#{src}"
 
-    shouldUpdate = true
-    if diff then
-      shouldUpdate = Utils.does_differ src, dst
-      shouldUpdate = Utils.confirm if shouldUpdate
-    end
-    if shouldUpdate then
-      file = CfgFile.new(dst, dir)
-      file.install(permissions, src)
-    end
+    file = CfgFile.new(dst, dir)
+    file.install(permissions, src, diff)
   end
 
   def self.git_folder(folder, repos)
@@ -83,18 +76,30 @@ module Cfg
     end
   end
 
-  class CfgDirectory
-    include Configurable.with(:purge, :source), FileUtils
+  class FilesystemResource
+    include FileUtils
+
     def initialize(path)
       @path = path
+    end
+
+    def exists?()
+      File.exists?(@path)
+    end
+  end
+
+  class CfgDirectory < Cfg::FilesystemResource
+    include Configurable.with(:purge, :source)
+    def initialize(path)
+      super(path)
       @purge = false
     end
 
     def apply()
-      shouldUpdate = @purge
+      shouldUpdate = true
       sh "rm -rf '#{@path}'" if @purge
 
-      if !shouldUpdate then
+      if !@purge && exists?() then
         shouldUpdate = Utils.does_differ @source, @path
         shouldUpdate = Utils.confirm if shouldUpdate
       end
@@ -105,19 +110,24 @@ module Cfg
     end
   end
 
-  class CfgFile
-    include FileUtils
-
+  class CfgFile < Cfg::FilesystemResource
     def initialize(path, dir)
-      @path = path
+      super(path)
       @dir = dir
     end
     
-    def install(permissions, src)
-      if @dir then
-        sh "install -pm #{permissions} -d -- #{@path}"
-      else
-        sh "install -pm #{permissions} -- #{src} #{@path}"
+    def install(permissions, src, diff)
+      shouldUpdate = true
+      if diff && exists?() then
+        shouldUpdate = Utils.does_differ src, @path
+        shouldUpdate = Utils.confirm if shouldUpdate
+      end
+      if shouldUpdate then
+        if @dir then
+          sh "install -pm #{permissions} -d -- #{@path}"
+        else
+          sh "install -pm #{permissions} -- #{src} #{@path}"
+        end
       end
     end
   end
