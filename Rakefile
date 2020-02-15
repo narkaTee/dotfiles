@@ -1,6 +1,10 @@
+ENV.has_key? 'HOME' or raise "'HOME' Environment variable is not available"
+ENV['HOME'].length > 0 or raise "'HOME' Environment variable is empty"
+
 HOME = ENV['HOME']
 
-require "./lib/dsl"
+require 'pathname'
+require './lib/dsl'
 
 task :default => :install
 task :install => [
@@ -9,7 +13,8 @@ task :install => [
   :install_tmux,
   :install_mintty,
   :install_ideavim,
-  :install_zsh
+  :install_zsh,
+  :install_vim
 ]
 
 task :install_sh => :test_sh do
@@ -63,8 +68,8 @@ task :install_tmux => :install_tmux_plugins do
 end
 
 task :install_tmux_plugins do
-  directory "#{HOME}/.tmux/plugins/" do
-    purge true
+  Cfg.directory "#{HOME}/.tmux/plugins/" do
+    purge
     source "tmux/plugins"
   end
 end
@@ -89,5 +94,29 @@ task :install_zsh_plugins do
   Cfg.git_folder("#{HOME}/.config/zsh-plugins/", {
     :powerlevel10k => "https://github.com/romkatv/powerlevel10k.git",
     :zsh_syntax_highlighting => "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+  })
+end
+
+task :install_vim => :install_vim_plugins do
+  Cfg.directory "#{HOME}/.vim/custom/" do
+    source "vim/custom"
+  end
+  Cfg.directory "#{HOME}/.vim/ftplugin/" do
+    source "vim/ftplugin"
+  end
+  Cfg.file("0644", src: "vim/vimrc", dst: "#{HOME}/.vim/vimrc")
+end
+
+task :install_vim_plugins do
+  VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'pack' + 'my-plugins' + 'start'
+  Cfg.git_folder(VIM_BUNDLE, {
+    :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git",
+    :sensible => "git://github.com/tpope/vim-sensible.git",
+    :sorround => "git://github.com/tpope/vim-surround.git",
+    :sleuth => "git://github.com/tpope/vim-sleuth.git",
+    :vim_airline => "git://github.com/vim-airline/vim-airline",
+    :vim_airline_themes => "git://github.com/vim-airline/vim-airline-themes",
+    :vim_fugitive => "git://github.com/tpope/vim-fugitive.git",
+    :vim_multiple_cursor => "git@github.com:terryma/vim-multiple-cursors.git"
   })
 end

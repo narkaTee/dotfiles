@@ -48,8 +48,11 @@ module Cfg
   end
 
   def self.git_folder(folder, repos)
+    puts "Updating git folder '#{folder}'"
+    puts "-" * 20
     folder = Pathname.new(folder)
     repos.each do |name, url|
+      puts "- checking #{name}"
       Utils.git url, folder + name.to_s
     end
   end
@@ -88,9 +91,17 @@ module Cfg
     end
 
     def apply()
+      shouldUpdate = @purge
       sh "rm -rf '#{@path}'" if @purge
-      sh "install -m 755 -d '#{@path}'"
-      sh "cp -Trf #{@source} '#{@path}'"
+
+      if !shouldUpdate then
+        shouldUpdate = Utils.does_differ @source, @path
+        shouldUpdate = Utils.confirm if shouldUpdate
+      end
+      if shouldUpdate
+        sh "install -m 755 -d '#{@path}'"
+        sh "cp -Trf #{@source} '#{@path}'"
+      end
     end
   end
 
