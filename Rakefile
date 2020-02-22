@@ -65,6 +65,7 @@ end
 
 task :install_tmux => :install_tmux_plugins do
   Cfg.file("0644", dst: "#{HOME}/.tmux.conf", src: "tmux/tmux.conf")
+  Cfg.file("0644", dst: "#{HOME}/.tmux/tmuxline.conf", src: "tmux/tmuxline.conf")
 end
 
 task :install_tmux_plugins do
@@ -117,6 +118,7 @@ task :install_vim_plugins do
     :vim_airline => "git://github.com/vim-airline/vim-airline",
     :vim_airline_themes => "git://github.com/vim-airline/vim-airline-themes",
     :vim_fugitive => "git://github.com/tpope/vim-fugitive.git",
-    :vim_multiple_cursor => "git@github.com:terryma/vim-multiple-cursors.git"
+    :vim_multiple_cursor => "git@github.com:terryma/vim-multiple-cursors.git",
+    :tmuxline => "git@github.com:edkolev/tmuxline.vim.git"
   })
 end
