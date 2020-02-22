@@ -20,7 +20,7 @@ task :install => [
 task :install_sh => :test_sh do
   Cfg.directory "#{HOME}/.config/shrc.d/" do
     purge
-    source "tmux/plugins/"
+    source "sh/shrc.d/"
   end
 end
 
@@ -34,7 +34,7 @@ end
 task :install_bash => [:test_bash, :install_sh] do
   Cfg.directory "#{HOME}/.bashrc.d/" do
     purge
-    source "bash/bashrc/"
+    source "bash/bashrc.d/"
   end
   Cfg.file("0644", dst: "#{HOME}/.bashrc", src: "bash/bashrc")
   Cfg.file("0644", dst: "#{HOME}/.bash_profile", src: "bash/bash_profile")
