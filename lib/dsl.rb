@@ -115,7 +115,7 @@ module Cfg
       super(path)
       @dir = dir
     end
-    
+
     def install(permissions, src, diff)
       shouldUpdate = true
       if diff && exists?() then
