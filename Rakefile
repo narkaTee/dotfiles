@@ -129,14 +129,14 @@ end
 task :install_vim_plugins do
   VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'pack' + 'my-plugins' + 'start'
   Cfg.git_directory(VIM_BUNDLE, {
-    :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git",
-    :sensible => "git://github.com/tpope/vim-sensible.git",
-    :sorround => "git://github.com/tpope/vim-surround.git",
-    :sleuth => "git://github.com/tpope/vim-sleuth.git",
-    :vim_airline => "git://github.com/vim-airline/vim-airline",
-    :vim_airline_themes => "git://github.com/vim-airline/vim-airline-themes",
-    :vim_fugitive => "git://github.com/tpope/vim-fugitive.git",
-    :vim_multiple_cursor => "git@github.com:terryma/vim-multiple-cursors.git",
-    :tmuxline => "git@github.com:edkolev/tmuxline.vim.git"
+    :solarized_colors => "https://github.com/altercation/vim-colors-solarized.git",
+    :sensible => "https://github.com/tpope/vim-sensible.git",
+    :sorround => "https://github.com/tpope/vim-surround.git",
+    :sleuth => "https://github.com/tpope/vim-sleuth.git",
+    :vim_airline => "https://github.com/vim-airline/vim-airline",
+    :vim_airline_themes => "https://github.com/vim-airline/vim-airline-themes",
+    :vim_fugitive => "https://github.com/tpope/vim-fugitive.git",
+    :vim_multiple_cursor => "http://github.com/terryma/vim-multiple-cursors.git",
+    :tmuxline => "https://github.com/edkolev/tmuxline.vim.git"
   })
 end
