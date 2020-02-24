@@ -42,11 +42,11 @@ setup_ssh_pagent() {
 
 setup_cli_agent() {
     ssh-add -l &>/dev/null
-    if [ "$?" == 2 ]; then
+    if [ "$?" -eq "2" ]; then
         test -r ~/.ssh-agent && eval "$(<~/.ssh-agent)" >/dev/null
 
         ssh-add -l &>/dev/null
-        if [ "$?" == 2 ]; then
+        if [ "$?" -eq "2" ]; then
             (umask 066; ssh-agent > ~/.ssh-agent)
             eval "$(<~/.ssh-agent)" >/dev/null
             ssh-add
@@ -61,7 +61,7 @@ if hash ssh-pageant 2>/dev/null; then
     setup_ssh_pagent
 else
     # ssh-pagent not found use standard utils
-    if hash gnome-keyring-daemon; then
+    if hash gnome-keyring-daemon 2>/dev/null; then
         setup_gnome_kr
     else
         setup_cli_agent
