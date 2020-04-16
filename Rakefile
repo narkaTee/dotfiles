@@ -107,13 +107,25 @@ task :install_zsh => :install_zsh_plugins do
     purge
     source "zsh/zshrc.d"
   end
+  Cfg.file("0644", src: "zsh/p10k.zsh", dst: "#{HOME}/.p10k.zsh")
 end
 
-task :install_zsh_plugins do
+task :install_zsh_plugins => :install_oh_my_zsh do
   Cfg.git_directory("#{HOME}/.config/zsh-plugins/", {
     :powerlevel10k => "https://github.com/romkatv/powerlevel10k.git",
     :fast_syntax_highlighting => "https://github.com/zdharma/fast-syntax-highlighting"
   })
+end
+
+task :install_oh_my_zsh do
+  sh <<-CMD.chomp
+    test -d "#{HOME}/.oh-my-zsh" || \
+    git clone -c core.eol=lf -c core.autocrlf=false \
+      -c fsck.zeroPaddedFilemode=ignore \
+      -c fetch.fsck.zeroPaddedFilemode=ignore \
+      -c receive.fsck.zeroPaddedFilemode=ignore \
+      --depth=1 --branch "master" "https://github.com/ohmyzsh/ohmyzsh.git" "#{HOME}/.oh-my-zsh"
+  CMD
 end
 
 task :install_vim => :install_vim_plugins do
