@@ -116,6 +116,13 @@ export KEYTIMEOUT=1
 
 source $HOME/.bash_profile
 
+if [ -d "$HOME/.config/zshrc.d/" ] ; then
+    for file in "$HOME/.config/"zshrc.d/* ; do
+        source "$file"
+    done
+    unset -v file
+fi
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 

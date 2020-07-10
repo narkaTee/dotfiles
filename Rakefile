@@ -89,6 +89,10 @@ end
 
 task :install_zsh => :install_zsh_plugins do
   Cfg.file("0644", src: "zsh/zshrc", dst: "#{HOME}/.zshrc")
+  Cfg.directory "#{HOME}/.config/zshrc.d/" do
+    purge
+    source "zsh/zshrc.d"
+  end
 end
 
 task :install_zsh_plugins do
