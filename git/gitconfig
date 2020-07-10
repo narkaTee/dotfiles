@@ -21,7 +21,7 @@
 [log]
     decorate = auto
 [init]
-    templatedir = ~/.git_template
+    templatedir = ~/.config/git/template
 [rebase]
     autosquash = true
 [push]

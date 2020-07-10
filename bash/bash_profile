@@ -5,8 +5,8 @@ if [ -d "$HOME/bin" ]; then
 fi
 
 # set PATH to include git-scripts if it exists
-if [ -d "$HOME/.config/git-scripts" ]; then
-    PATH="$PATH:$HOME/.config/git-scripts"
+if [ -d "$HOME/.config/git/scripts" ]; then
+    PATH="$PATH:$HOME/.config/git/scripts"
 fi
 
 # set PATH to include the global composer bin if it exists

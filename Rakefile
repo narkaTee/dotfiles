@@ -13,6 +13,7 @@ task :install => [
   :install_tmux,
   :install_mintty,
   :install_ideavim,
+  :install_bash,
   :install_zsh,
   :install_vim
 ]
@@ -32,7 +33,9 @@ task :test_sh do
 end
 
 task :install_bash => [:test_bash, :install_sh] do
-  Cfg.directory "#{HOME}/.bashrc.d/" do
+  ## remove legacy directory
+  sh 'rm -rf "$HOME/.bashrc.d"'
+  Cfg.directory "#{HOME}/.config/bashrc.d/" do
     purge
     source "bash/bashrc.d/"
   end
@@ -48,28 +51,39 @@ task :test_bash do
 end
 
 task :install_git do
-  Cfg.directory "#{HOME}/.config/git-scripts/" do
+  Cfg.directory "#{HOME}/.config/git/scripts/" do
     purge
-    source "git/git-scripts/"
+    source "git/scripts/"
   end
-  Cfg.directory "#{HOME}/.git_template/" do
+  Cfg.directory "#{HOME}/.config/git/template/" do
     purge
-    source "git/git_template/"
+    source "git/template/"
   end
-  Cfg.file("0644", dst: "#{HOME}/.gitconfig.dot", src: "git/gitconfig")
+  Cfg.file("0644", dst: "#{HOME}/.config/git/gitconfig", src: "git/gitconfig")
   sh <<-CMD.chomp
-  git config --global --get-all include.path "#{HOME}/.gitconfig.dot" > /dev/null || \
-  git config --global --add include.path "#{HOME}/.gitconfig.dot"
+  # remove old path(s) if present
+  git config --global --get-all include.path "#{HOME}/.gitconfig.dot" > /dev/null && \
+  git config --global --unset include.path "#{HOME}/.gitconfig.dot"
+  # delete legacy paths
+  rm -f "#{HOME}/.gitconfig.dot"
+  rm -rf "#{HOME}/.gitconfig.d/"
+  rm -rf "#{HOME}/.config/git-scripts"
+  rm -rf "#{HOME}/.git_template"
+
+  git config --global --get-all include.path "#{HOME}/.config/git/gitconfig" > /dev/null || \
+  git config --global --add include.path "#{HOME}/.config/git/gitconfig"
   CMD
 end
 
 task :install_tmux => :install_tmux_plugins do
+  ## remove legacy directory
+  sh 'rm -rf "$HOME/.tmux/"'
   Cfg.file("0644", dst: "#{HOME}/.tmux.conf", src: "tmux/tmux.conf")
-  Cfg.file("0644", dst: "#{HOME}/.tmux/tmuxline.conf", src: "tmux/tmuxline.conf")
+  Cfg.file("0644", dst: "#{HOME}/.config/tmux/tmuxline.conf", src: "tmux/tmuxline.conf")
 end
 
 task :install_tmux_plugins do
-  Cfg.directory "#{HOME}/.tmux/plugins/" do
+  Cfg.directory "#{HOME}/.config/tmux/plugins/" do
     purge
     source "tmux/plugins"
   end

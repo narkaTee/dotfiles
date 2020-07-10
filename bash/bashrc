@@ -16,8 +16,8 @@ if [ -d "$HOME/.config/shrc.d/" ]; then
 fi
 
 # Load bash scripts
-if [ -d "$HOME/.bashrc.d" ] ; then
-    for file in "$HOME"/.bashrc.d/* ; do
+if [ -d "$HOME/.config/bashrc.d" ] ; then
+    for file in "$HOME/.config"/bashrc.d/* ; do
         . "$file"
     done
     unset -v file
