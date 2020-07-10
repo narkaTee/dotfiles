@@ -59,7 +59,7 @@ module Cfg
     end
 
     def self.confirm(text = "Apply Changes?")
-      puts "#{text} (Y/n): "
+      print "#{text} (Y/n): "
       answer = gets.chomp
       answer == "" || answer == "y"
     end
