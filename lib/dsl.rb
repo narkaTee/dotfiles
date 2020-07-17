@@ -28,7 +28,7 @@ end
 
 module Cfg
   def self.directory(path, &block)
-    dir = CfgDirectory.new(path)
+    dir = Objects::CfgDirectory.new(path)
     dir.configure(&block)
     dir.apply
   end
@@ -36,46 +36,18 @@ module Cfg
   def self.file(permissions, src: nil, dst: nil, dir: false, diff: true)
     dst = dst || "#{HOME}/#{src}"
 
-    file = CfgFile.new(dst, dir)
+    file = Objects::CfgFile.new(dst, dir)
     file.install(permissions, src, diff)
   end
 
-  def self.git_folder(folder, repos)
-    puts "Updating git folder '#{folder}'"
-    puts "-" * 20
-    folder = Pathname.new(folder)
-    repos.each do |name, url|
-      puts "- checking #{name}"
-      Utils.git url, folder + name.to_s
-    end
+  def self.git_directory(dir, repos)
+    git_directory = Objects::GitDirectory.new(dir, repos)
+    git_directory.sync()
   end
+end
 
-  module Utils
-    def self.does_differ(src, dst)
-        out = `script --return --quiet -c 'git diff --no-index --exit-code "#{dst}" "#{src}"' /dev/null`
-        differs = $?.exitstatus == 1
-        puts out if differs
-        differs
-    end
 
-    def self.confirm(text = "Apply Changes?")
-      print "#{text} (Y/n): "
-      answer = gets.chomp
-      answer == "" || answer == "y"
-    end
-
-    def self.git(url, location)
-        if File.directory?(location + ".git")
-            puts "trying to update via git pull"
-            FileUtils.cd location do
-                puts `git pull`
-            end
-        else
-            puts `git clone --depth 1 #{url} #{location}`
-        end
-    end
-  end
-
+module Objects
   class FilesystemResource
     include FileUtils
 
@@ -88,7 +60,7 @@ module Cfg
     end
   end
 
-  class CfgDirectory < Cfg::FilesystemResource
+  class CfgDirectory < FilesystemResource
     include Configurable.with(:purge, :source)
     def initialize(path)
       super(path)
@@ -110,7 +82,7 @@ module Cfg
     end
   end
 
-  class CfgFile < Cfg::FilesystemResource
+  class CfgFile < FilesystemResource
     def initialize(path, dir)
       super(path)
       @dir = dir
@@ -130,5 +102,60 @@ module Cfg
         end
       end
     end
+  end
+
+  class GitDirectory < FilesystemResource
+    def initialize(dir, repos)
+      super(dir)
+      @repos = repos
+    end
+
+    def sync()
+      path = Pathname.new(@path)
+      puts "Updating git folder '#{path}'"
+      allowed_dirs = @repos.keys.map { |k| k.to_s }
+      to_delete = path.children.select { |name|
+        !allowed_dirs.include?(name.basename.to_s)
+      }
+      if !to_delete.empty?
+        puts "-" * 20
+        puts "Cleaning up, allowed dirs: " + allowed_dirs.join(", ")
+      end
+      to_delete.each do |name|
+        sh "rm -rf #{path + name}"
+      end
+      puts "-" * 20
+      @repos.each do |name, url|
+        puts "- checking #{name}"
+        Utils.git url, path + name.to_s
+      end
+      puts
+    end
+  end
+end
+
+module Utils
+  def self.does_differ(src, dst)
+      out = `script --return --quiet -c 'git diff --no-index --exit-code "#{dst}" "#{src}"' /dev/null`
+      differs = $?.exitstatus == 1
+      puts out if differs
+      differs
+  end
+
+  def self.confirm(text = "Apply Changes?")
+    print "#{text} (Y/n): "
+    answer = gets.chomp
+    answer == "" || answer == "y"
+  end
+
+  def self.git(url, location)
+      if File.directory?(location + ".git")
+          puts "trying to update via git pull"
+          FileUtils.cd location do
+              puts `git pull`
+          end
+      else
+          puts `git clone --depth 1 #{url} #{location}`
+      end
   end
 end

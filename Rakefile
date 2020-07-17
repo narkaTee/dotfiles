@@ -110,7 +110,7 @@ task :install_zsh => :install_zsh_plugins do
 end
 
 task :install_zsh_plugins do
-  Cfg.git_folder("#{HOME}/.config/zsh-plugins/", {
+  Cfg.git_directory("#{HOME}/.config/zsh-plugins/", {
     :powerlevel10k => "https://github.com/romkatv/powerlevel10k.git",
     :zsh_syntax_highlighting => "https://github.com/zsh-users/zsh-syntax-highlighting.git"
   })
@@ -128,7 +128,7 @@ end
 
 task :install_vim_plugins do
   VIM_BUNDLE = Pathname.new( ENV['HOME'] ) + '.vim' + 'pack' + 'my-plugins' + 'start'
-  Cfg.git_folder(VIM_BUNDLE, {
+  Cfg.git_directory(VIM_BUNDLE, {
     :solarized_colors => "git://github.com/altercation/vim-colors-solarized.git",
     :sensible => "git://github.com/tpope/vim-sensible.git",
     :sorround => "git://github.com/tpope/vim-surround.git",
