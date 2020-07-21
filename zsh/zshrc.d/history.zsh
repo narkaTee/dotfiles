@@ -11,8 +11,8 @@ setopt share_history
 # stolen from:
 # https://superuser.com/questions/446594/separate-up-arrow-lookback-for-local-and-global-zsh-history
 # arrow keys search local history
-bindkey "${key[Up]}" up-line-or-local-history
-bindkey "${key[Down]}" down-line-or-local-history
+bindkey "${terminfo[kcuu1]}" up-line-or-local-history
+bindkey "${terminfo[kcud1]}" down-line-or-local-history
 # CTRL + arrow key searches global history
 bindkey "^[[1;5A" up-line-or-history    # [CTRL] + Cursor up
 bindkey "^[[1;5B" down-line-or-history  # [CTRL] + Cursor down
