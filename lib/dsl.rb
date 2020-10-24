@@ -113,6 +113,8 @@ module Objects
     def sync()
       path = Pathname.new(@path)
       puts "Updating git folder '#{path}'"
+      FileUtils.mkdir_p path unless exists?
+
       allowed_dirs = @repos.keys.map { |k| k.to_s }
       to_delete = path.children.select { |name|
         !allowed_dirs.include?(name.basename.to_s)
@@ -124,6 +126,7 @@ module Objects
       to_delete.each do |name|
         sh "rm -rf #{path + name}"
       end
+
       puts "-" * 20
       @repos.each do |name, url|
         puts "- checking #{name}"
