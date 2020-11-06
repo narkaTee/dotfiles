@@ -1,8 +1,4 @@
 # vim: ft=bash
-# set PATH to include the private bin if it exists
-if [ -d "$HOME/bin" ]; then
-    PATH="$PATH:$HOME/bin"
-fi
 
 # set PATH to include git-scripts if it exists
 if [ -d "$HOME/.config/git/scripts" ]; then
@@ -92,9 +88,15 @@ if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
         for COMPLETION in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
             [[ -r "$COMPLETION" ]] && source "$COMPLETION"
         done
-   fi
+    fi
 fi
 
 if [ -d "$HOME/.cargo/bin" ]; then
     export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
+# Should be the last path modification so it takes precedence
+# set PATH to include the private bin if it exists
+if [ -d "$HOME/bin" ]; then
+    PATH="$HOME/bin:$PATH"
 fi
