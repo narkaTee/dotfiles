@@ -10,6 +10,11 @@ if [ -d "$HOME/.composer/vendor/bin" ]; then
     PATH="$PATH:$HOME/.composer/vendor/bin"
 fi
 
+# set path to include pip bin if it exists
+if [ -d "$HOME/.local/bin" ]; then
+    PATH="$PATH:$HOME/.local/bin"
+fi
+
 # Setup EDITOR and VISUAL
 if hash vim 2>/dev/null; then
     export EDITOR="vim"
