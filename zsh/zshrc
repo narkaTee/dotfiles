@@ -135,3 +135,7 @@ fi
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 source ~/.config/zsh-plugins/fast_syntax_highlighting/fast-syntax-highlighting.plugin.zsh
+
+# I like the bash behaviour of globbing
+unsetopt extended_glob
+setopt +o nomatch
