@@ -147,7 +147,7 @@ module Utils
 
   def self.confirm(text = "Apply Changes?")
     print "#{text} (Y/n): "
-    answer = gets.chomp
+    answer = STDIN.gets.chomp
     answer == "" || answer == "y"
   end
 
