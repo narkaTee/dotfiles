@@ -1,0 +1,17 @@
+plugin:
+
+  followPodLogs:
+    shortCut: Ctrl-L
+    description: follow logs
+    scopes:
+    - po
+    command: kubectl
+    background: false
+    args:
+    - logs
+    - -f
+    - $NAME
+    - -n
+    - $NAMESPACE
+    - --context
+    - $CONTEXT

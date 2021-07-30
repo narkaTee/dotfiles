@@ -15,7 +15,8 @@ task :install => [
   :install_ideavim,
   :install_bash,
   :install_zsh,
-  :install_vim
+  :install_vim,
+  :install_k9s
 ]
 
 task :install_sh => :test_sh do
@@ -151,4 +152,10 @@ task :install_vim_plugins do
     :vim_multiple_cursor => "http://github.com/terryma/vim-multiple-cursors.git",
     :tmuxline => "https://github.com/edkolev/tmuxline.vim.git"
   })
+end
+
+task :install_k9s do
+  Cfg.directory "#{HOME}/.k9s/" do
+    source "k9s"
+  end
 end
