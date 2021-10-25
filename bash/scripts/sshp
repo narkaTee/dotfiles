@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -eo pipefail
+url_pattern='^(http|https):\/\/([^:]+):?([0-9]*)$'
+
+extract_proxy_from_env() {
+    local vars=("http_proxy" "HTTP_PROXY" "https_proxy" "HTTPS_PROXY")
+    local proxy_url
+    for var in $vars; do
+        if [ -n "${!var}" ]; then
+            proxy_url="${!var}"
+            break
+        fi
+    done
+    echo $proxy_url
+}
+
+extract_proxy_host() {
+    echo "$(extract_proxy_from_env | sed -r "s/$url_pattern/\2/g")"
+}
+
+extract_proxy_port() {
+    local proxy="$(extract_proxy_from_env)"
+    local port
+    if [[ "$proxy" =~ $url_pattern ]]; then
+        port="${BASH_REMATCH[3]}"
+    fi
+    if [ -z "$port" ]; then
+        case "$proxy" in
+            "http:"*)
+                port="80"
+                ;;
+            "https:"*)
+                port="443"
+                ;;
+            *)
+                >&2 echo "Unsupported proxy url: $proxy"
+                exit 1
+                ;;
+        esac
+    fi
+    echo "$port"
+}
+
+ssh_openssl_proxy_command() {
+    local proxy_host proxy_port
+    proxy_host="$(extract_proxy_host)"
+    proxy_port="$(extract_proxy_port)"
+    openssl="$(which openssl)"
+    if [ -z "$openssl" ]; then
+        >&2 echo "openssl not found!"
+        exit 1
+    fi
+    echo "$openssl s_client -connect %h:%p -proxy $proxy_host:$proxy_port"
+}
+ssh_corkscrew_proxy_command() {
+    local proxy_host proxy_port
+    proxy_host="$(extract_proxy_host)"
+    proxy_port="$(extract_proxy_port)"
+    corkscrew="$(which corkscrew)"
+    if [ -z "$corkscrew" ]; then
+        >&2 echo "corkscrew not found!"
+        exit 1
+    fi
+    echo "$corkscrew $proxy_host $proxy_port %h %p"
+}
+
+# uses corkscrew to tunnel ssh through a http proxy
+sshp() {
+    local proxy_command
+    case "$1" in
+        "-t")
+        "--tls")
+            proxy_command="$(ssh_openssl_proxy_command)"
+            ;;
+        "-c")
+        "--corkscrew")
+        *)
+            proxy_command="$(ssh_corkscrew_proxy_command)"
+            ;;
+    esac
+
+    ssh -o "ProxyCommand '$proxy_command'" -o "ServerAliveInterval 30" $@
+}
+sshp "$@"
