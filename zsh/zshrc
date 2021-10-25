@@ -139,3 +139,5 @@ source ~/.config/zsh-plugins/fast_syntax_highlighting/fast-syntax-highlighting.p
 # I like the bash behaviour of globbing
 unsetopt extended_glob
 setopt +o nomatch
+# Disable XON/XOFF flow control
+unsetopt flowcontrol
