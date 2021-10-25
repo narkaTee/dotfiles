@@ -33,6 +33,17 @@ if [ -d "/home/linuxbrew/.linuxbrew" ]; then
     eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 fi
 
+if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
+    HOMEBREW_PREFIX="$(brew --prefix)"
+    if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
+        source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
+    else
+        for COMPLETION in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
+            [[ -r "$COMPLETION" ]] && source "$COMPLETION"
+        done
+    fi
+fi
+
 # Add RVM
 if [ -d "$HOME/.rvm" ]; then
     export PATH="$PATH:$HOME/.rvm/bin"

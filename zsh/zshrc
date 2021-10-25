@@ -11,8 +11,8 @@ source ~/.config/zsh-plugins/powerlevel10k/powerlevel10k.zsh-theme
 if type brew &>/dev/null; then
   FPATH=$(brew --prefix)/share/zsh/site-functions:$FPATH
 
-  #autoload -Uz compinit
-  #compinit
+  autoload -Uz compinit
+  compinit
 fi
 
 # If you come from bash you might have to change your $PATH.
