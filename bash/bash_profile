@@ -85,17 +85,6 @@ if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
     source "$HOME/.rvm/scripts/rvm"
 fi
 
-if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
-    HOMEBREW_PREFIX="$(brew --prefix)"
-    if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
-        source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
-    else
-        for COMPLETION in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
-            [[ -r "$COMPLETION" ]] && source "$COMPLETION"
-        done
-    fi
-fi
-
 if [ -d "$HOME/.cargo/bin" ]; then
     export PATH="$HOME/.cargo/bin:$PATH"
 fi
