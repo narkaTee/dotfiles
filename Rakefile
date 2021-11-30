@@ -114,7 +114,7 @@ end
 task :install_zsh_plugins => :install_oh_my_zsh do
   Cfg.git_directory("#{HOME}/.config/zsh-plugins/", {
     :powerlevel10k => "https://github.com/romkatv/powerlevel10k.git",
-    :fast_syntax_highlighting => "https://github.com/zdharma/fast-syntax-highlighting"
+    :fast_syntax_highlighting => "https://github.com/zdharma-continuum/fast-syntax-highlighting.git"
   })
 end
 
