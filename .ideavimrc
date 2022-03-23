@@ -3,7 +3,7 @@
 let mapleader=" "
 
 " Reload this file.
-nnoremap <Leader>rv :source ~/.ideavimrc<CR>:echo "Reloaded .ideavimrc"<CR>
+nnoremap <Leader>ll :source ~/.ideavimrc<CR>:echo "Reloaded .ideavimrc"<CR>
 
 " Pleasant defaults.
 set surround
@@ -39,15 +39,16 @@ vnoremap > >gv
 
 " Introduce shortcuts for my favourite refactorings.
 " Also, go directly to insert mode when renaming or introducing a new variable.
-nnoremap <Leader><Leader>r :action RenameElement<CR>i
-nnoremap <Leader><Leader>v :action IntroduceVariable<CR>i
-vnoremap <Leader><Leader>v :action IntroduceVariable<CR>
-nnoremap <Leader><Leader>s :action SurroundWith<CR>i
-vnoremap <Leader><Leader>s :action SurroundWith<CR>i
-nnoremap <Leader><Leader>o :action OptimizeImports<CR>
-nnoremap <Leader><Leader>i :action Inline<CR>
-nnoremap <Leader><Leader>m :action ExtractMethod<CR>
-vnoremap <Leader><Leader>m :action ExtractMethod<CR>
+nnoremap ,n :action RenameElement<CR>i
+nnoremap ,v :action IntroduceVariable<CR>i
+vnoremap ,v :action IntroduceVariable<CR>
+nnoremap ,s :action SurroundWith<CR>i
+vnoremap ,s :action SurroundWith<CR>i
+nnoremap ,i :action Inline<CR>
+nnoremap ,m :action ExtractMethod<CR>
+vnoremap ,m :action ExtractMethod<CR>
+
+nnoremap ,r :action Refactorings.QuickListPopupAction<CR>
 
 " Some actions and movements
 nnoremap <Leader>g :action Git.Add<CR>
