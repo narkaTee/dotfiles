@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Usage: git fix <commit to fix>
+
+if [ ! -n "$(git rev-parse --is-inside-work-tree 2>/dev/null)" ]; then
+    >&2 echo "Not a git repository"
+    exit 1
+fi
+commit=${1:-}
+
+need_stash=""
+if ! git diff --quiet 2>/dev/null; then
+    need_stash="y"
+fi
+
+git fix "$commit"
+test ! -z "$need_stash" && git stash push --keep-index -m "stash files before fixrb $commit"
+git rebase -i "$commit^1"
+test ! -z "$need_stash" && git stash pop
+exit $?
