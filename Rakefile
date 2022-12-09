@@ -8,18 +8,18 @@ require './lib/dsl'
 
 task :default => :install
 task :install => [
-  :install_sh,
-  :install_git,
-  :install_tmux,
-  :install_mintty,
-  :install_ideavim,
-  :install_bash,
-  :install_zsh,
-  :install_vim,
-  :install_k9s
+  :sh,
+  :git,
+  :tmux,
+  :mintty,
+  :ideavim,
+  :bash,
+  :zsh,
+  :vim,
+  :k9s
 ]
 
-task :install_sh => :test_sh do
+task :sh => :test_sh do
   Cfg.directory "#{HOME}/.config/shrc.d/" do
     purge
     source "sh/shrc.d/"
@@ -33,7 +33,7 @@ task :test_sh do
   end
 end
 
-task :install_bash => [:test_bash, :install_sh] do
+task :bash => [:test_bash, :install_sh] do
   ## remove legacy directory
   sh 'rm -rf "$HOME/.bashrc.d"'
   Cfg.directory "#{HOME}/.config/bashrc.d/" do
@@ -51,7 +51,7 @@ task :test_bash do
   end
 end
 
-task :install_git do
+task :git do
   Cfg.directory "#{HOME}/.config/git/scripts/" do
     purge
     source "git/scripts/"
@@ -76,7 +76,7 @@ task :install_git do
   CMD
 end
 
-task :install_tmux => :install_tmux_plugins do
+task :tmux => :install_tmux_plugins do
   ## remove legacy directory
   sh 'rm -rf "$HOME/.tmux/"'
   Cfg.file("0644", dst: "#{HOME}/.tmux.conf", src: "tmux/tmux.conf")
@@ -90,7 +90,7 @@ task :install_tmux_plugins do
   end
 end
 
-task :install_mintty do
+task :mintty do
   sh <<-CMD.chomp
   if hash cygcheck.exe 2> /dev/null; then
     cp -f "mintty/minttyrc" "#{HOME}/.minttyrc"
@@ -98,11 +98,11 @@ task :install_mintty do
   CMD
 end
 
-task :install_ideavim do
+task :ideavim do
   Cfg.file("0644", src: ".ideavimrc")
 end
 
-task :install_zsh => :install_zsh_plugins do
+task :zsh => :install_zsh_plugins do
   Cfg.file("0644", src: "zsh/zshrc", dst: "#{HOME}/.zshrc")
   Cfg.directory "#{HOME}/.config/zshrc.d/" do
     purge
@@ -129,7 +129,7 @@ task :install_oh_my_zsh do
   CMD
 end
 
-task :install_vim => :install_vim_plugins do
+task :vim => :install_vim_plugins do
   Cfg.directory "#{HOME}/.vim/custom/" do
     source "vim/custom"
   end
@@ -154,7 +154,7 @@ task :install_vim_plugins do
   })
 end
 
-task :install_k9s do
+task :k9s do
   Cfg.directory "#{HOME}/.k9s/" do
     source "k9s"
   end
