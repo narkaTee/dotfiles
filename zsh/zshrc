@@ -7,7 +7,9 @@ fi
 
 source ~/.config/zsh-plugins/powerlevel10k/powerlevel10k.zsh-theme
 
-source $HOME/.bash_profile
+. "$HOME/.config/setup/ssh.sh"
+. "$HOME/.config/setup/tools.sh"
+. "$HOME/.config/bashrc.d/z.sh"
 
 if [ -d "$HOME/.config/zshrc.d/" ] ; then
     for file in "$HOME/.config/"zshrc.d/* ; do
@@ -15,6 +17,8 @@ if [ -d "$HOME/.config/zshrc.d/" ] ; then
     done
     unset -v file
 fi
+
+. "$HOME/.config/setup/env.sh"
 
 setopt AUTO_PUSHD
 setopt PUSHD_IGNORE_DUPS

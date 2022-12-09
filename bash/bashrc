@@ -5,15 +5,10 @@ case $- in
 esac
 
 # Disable XON/XOFF flow control
-test -z "$ZSH_VERSION" && stty -ixon
+stty -ixon
 
-# Load posix scripts
-if [ -d "$HOME/.config/shrc.d/" ]; then
-    for file in "$HOME"/.config/shrc.d/* ; do
-        . "$file"
-    done
-    unset -v file
-fi
+. "$HOME/.config/setup/ssh.sh"
+. "$HOME/.config/setup/tools.sh"
 
 # Load bash scripts
 if [ -d "$HOME/.config/bashrc.d" ] ; then
@@ -21,11 +16,6 @@ if [ -d "$HOME/.config/bashrc.d" ] ; then
         . "$file"
     done
     unset -v file
-fi
-
-# setup brew
-if [ -d "/home/linuxbrew/.linuxbrew" ]; then
-    eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 fi
 
 if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
@@ -39,24 +29,11 @@ if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
     fi
 fi
 
-# source sdkman if it's installed
-if [ -f "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
-    . "$HOME/.sdkman/bin/sdkman-init.sh"
-fi
-
-# Add RVM
-if [ -d "$HOME/.rvm" ]; then
-    export PATH="$PATH:$HOME/.rvm/bin"
-fi
-
-# Add NVM
+# Add NVM bash completion
 if [ -d "$HOME/.nvm" ]; then
-    export NVM_DIR="$HOME/.nvm"
-    # use ifs to prevent non zero exit state if nvm is not installed
-    if [ -s "$NVM_DIR/nvm.sh" ]; then
-        \. "$NVM_DIR/nvm.sh"  # This loads nvm
-    fi
     if [ -s "$NVM_DIR/bash_completion" ]; then
         \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
     fi
 fi
+
+. "$HOME/.config/setup/env.sh"
