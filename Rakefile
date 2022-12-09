@@ -24,16 +24,20 @@ task :sh => :test_sh do
     purge
     source "sh/shrc.d/"
   end
+  Cfg.directory "#{HOME}/.config/setup/" do
+    purge
+    source "sh/setup"
+  end
 end
 
 task :test_sh do
-  Dir.glob("sh/shrc.d/*.sh").each do |file|
+  Dir.glob("sh/*/*.sh").each do |file|
      `dash -n "#{file}"`
      exit unless $?.exitstatus == 0
   end
 end
 
-task :bash => [:test_bash, :install_sh] do
+task :bash => [:test_bash, :sh] do
   ## remove legacy directory
   sh 'rm -rf "$HOME/.bashrc.d"'
   Cfg.directory "#{HOME}/.config/bashrc.d/" do
@@ -102,7 +106,7 @@ task :ideavim do
   Cfg.file("0644", src: ".ideavimrc")
 end
 
-task :zsh => :install_zsh_plugins do
+task :zsh => [:install_zsh_plugins, :sh, :bash] do
   Cfg.file("0644", src: "zsh/zshrc", dst: "#{HOME}/.zshrc")
   Cfg.directory "#{HOME}/.config/zshrc.d/" do
     purge

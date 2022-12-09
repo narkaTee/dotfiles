@@ -1,74 +1,5 @@
 # vim: ft=bash
 
-# set PATH to include git-scripts if it exists
-if [ -d "$HOME/.config/git/scripts" ]; then
-    PATH="$PATH:$HOME/.config/git/scripts"
-fi
-
-# set PATH to include the global composer bin if it exists
-if [ -d "$HOME/.composer/vendor/bin" ]; then
-    PATH="$PATH:$HOME/.composer/vendor/bin"
-fi
-
-# set path to include pip bin if it exists
-if [ -d "$HOME/.local/bin" ]; then
-    PATH="$PATH:$HOME/.local/bin"
-fi
-
-# Setup EDITOR and VISUAL
-if hash vim 2>/dev/null; then
-    export EDITOR="vim"
-    export VISUAL="$EDITOR"
-else
-    echo "Dude, no vim?!"
-fi
-
-
-# Predictable ssh auth sock
-if [ ! -z "$SSH_AUTH_SOCK" ]; then
-    permanent="$HOME/.ssh_auth_sock"
-    if [ "$SSH_AUTH_SOCK" != "$permanent" ]; then
-        ln -sf "$SSH_AUTH_SOCK" "$permanent"
-        export SSH_AUTH_SOCK="$permanent"
-    fi
-fi
-
-setup_gnome_kr() {
-    export $(gnome-keyring-daemon -s)
-}
-
-setup_ssh_pagent() {
-    eval $(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")
-}
-
-setup_cli_agent() {
-    ssh-add -l &>/dev/null
-    if [ "$?" -eq "2" ]; then
-        test -r ~/.ssh-agent && eval "$(<~/.ssh-agent)" >/dev/null
-
-        ssh-add -l &>/dev/null
-        if [ "$?" -eq "2" ]; then
-            (umask 066; ssh-agent > ~/.ssh-agent)
-            eval "$(<~/.ssh-agent)" >/dev/null
-            ssh-add
-        fi
-    fi
-}
-# start auth agent
-# I'm going to be a bit dirty here:
-# Instead of checking for cygwin properly just checking for ssh-pageant
-if hash ssh-pageant 2>/dev/null; then
-    # start ssh-pageant (cygwin)
-    setup_ssh_pagent
-else
-    # ssh-pagent not found use standard utils
-    if hash gnome-keyring-daemon 2>/dev/null; then
-        setup_gnome_kr
-    else
-        setup_cli_agent
-    fi
-fi
-
 # source local bash_profile if exists
 if [ -f "$HOME/.bash_profile.local" ]; then
     . "$HOME/.bash_profile.local"
@@ -77,20 +8,4 @@ fi
 # source interactive bash config
 if [ -f "$HOME/.bashrc" ]; then
     . "$HOME/.bashrc"
-fi
-
-# Source rvm if it's installed
-# $? will be 1 on a new shell if this is not in a extra if and rvm is not present.
-if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
-    source "$HOME/.rvm/scripts/rvm"
-fi
-
-if [ -d "$HOME/.cargo/bin" ]; then
-    export PATH="$HOME/.cargo/bin:$PATH"
-fi
-
-# Should be the last path modification so it takes precedence
-# set PATH to include the private bin if it exists
-if [ -d "$HOME/bin" ]; then
-    PATH="$HOME/bin:$PATH"
 fi
