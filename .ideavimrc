@@ -6,8 +6,9 @@ let mapleader=" "
 nnoremap <Leader>ll :source ~/.ideavimrc<CR>:echo "Reloaded .ideavimrc"<CR>
 
 " Pleasant defaults.
-set surround
-set multiple-cursors
+Plug 'tpope/vim-surround'
+Plug 'terryma/vim-multiple-cursors'
+Plug 'machakann/vim-highlightedyank'
 set clipboard=unnamed,ideaput
 set ignorecase
 set nrformats-=octal
@@ -39,16 +40,16 @@ vnoremap > >gv
 
 " Introduce shortcuts for my favourite refactorings.
 " Also, go directly to insert mode when renaming or introducing a new variable.
-nnoremap ,n :action RenameElement<CR>i
-nnoremap ,v :action IntroduceVariable<CR>i
+nnoremap ,n :action RenameElement<CR>
+nnoremap ,v :action IntroduceVariable<CR>
 vnoremap ,v :action IntroduceVariable<CR>
-nnoremap ,s :action SurroundWith<CR>i
-vnoremap ,s :action SurroundWith<CR>i
+nnoremap ,s :action SurroundWith<CR>
+vnoremap ,s :action SurroundWith<CR>
 nnoremap ,i :action Inline<CR>
 nnoremap ,m :action ExtractMethod<CR>
 vnoremap ,m :action ExtractMethod<CR>
-
-nnoremap ,r :action Refactorings.QuickListPopupAction<CR>
+nnoremap ,t :action Refactorings.QuickListPopupAction<CR>
+vnoremap ,t :action Refactorings.QuickListPopupAction<CR>
 
 " Some actions and movements
 nnoremap <Leader>g :action Git.Add<CR>
