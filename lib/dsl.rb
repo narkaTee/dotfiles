@@ -139,7 +139,7 @@ end
 
 module Utils
   def self.does_differ(src, dst)
-      out = `script --return --quiet -c 'git diff --no-index --exit-code "#{dst}" "#{src}"' /dev/null`
+      out = `git diff --no-index --color --exit-code "#{dst}" "#{src}"`
       differs = $?.exitstatus == 1
       puts out if differs
       differs
