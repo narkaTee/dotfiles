@@ -9,6 +9,7 @@ require './lib/dsl'
 task :default => :install
 task :install => [
   :sh,
+  :direnv,
   :git,
   :tmux,
   :mintty,
@@ -27,6 +28,13 @@ task :sh => :test_sh do
   Cfg.directory "#{HOME}/.config/setup/" do
     purge
     source "sh/setup"
+  end
+end
+
+task :direnv do
+  Cfg.directory "#{HOME}/.config/direnv" do
+    purge
+    source "direnv"
   end
 end
 
