@@ -18,6 +18,10 @@ if [ -d "$HOME/.config/bashrc.d" ] ; then
     unset -v file
 fi
 
+if hash direnv 2>/dev/null; then
+    eval "$(direnv hook bash)"
+fi
+
 if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
     HOMEBREW_PREFIX="$(brew --prefix)"
     if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
