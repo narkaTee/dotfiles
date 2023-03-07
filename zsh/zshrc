@@ -1,3 +1,13 @@
+# load customizations first, on macos this file might set up tooling we
+# need.
+if [ -f "$HOME/.zshrc.local" ]; then
+    source "$HOME/.zshrc.local"
+fi
+
+if hash direnv 2>/dev/null; then
+    emulate zsh -c "$(direnv export zsh)"
+fi
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block, everything else may go below.
@@ -5,8 +15,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-if [ -f "$HOME/.zshrc.local" ]; then
-    source "$HOME/.zshrc.local"
+if hash direnv 2>/dev/null; then
+    emulate zsh -c "$(direnv hook zsh)"
 fi
 
 source ~/.config/zsh-plugins/powerlevel10k/powerlevel10k.zsh-theme
@@ -23,10 +33,6 @@ if [ -d "$HOME/.config/zshrc.d/" ] ; then
 fi
 
 . "$HOME/.config/setup/env.sh"
-
-if hash direnv 2>/dev/null; then
-    eval "$(direnv hook zsh)"
-fi
 
 setopt AUTO_PUSHD
 setopt PUSHD_IGNORE_DUPS
