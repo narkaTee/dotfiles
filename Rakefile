@@ -5,6 +5,7 @@ HOME = ENV['HOME']
 
 require 'pathname'
 require './lib/dsl'
+require './lib/util'
 
 task :default => :install
 task :install => [
@@ -17,7 +18,8 @@ task :install => [
   :bash,
   :zsh,
   :vim,
-  :k9s
+  :k9s,
+  :macos
 ]
 
 task :sh => :test_sh do
@@ -159,4 +161,9 @@ task :k9s do
   Cfg.directory "#{HOME}/.k9s/" do
     source "k9s"
   end
+end
+
+task :macos do
+  next if !is_macos
+  Cfg.file("0644", src: "macos/karabiner.json", dst: "#{HOME}/.config/karabiner/karabiner.json")
 end
