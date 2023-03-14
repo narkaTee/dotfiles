@@ -61,6 +61,7 @@ nnoremap <Leader>a :action GotoAction<CR>
 nnoremap <Leader>t :action GotoTest<CR>
 nnoremap <Leader>b :action GotoDeclaration<CR>
 nnoremap <Leader>q :action QuickJavaDoc<CR>
+nnoremap <Leader>d :action GotoDeclaration<CR>
 
 " Run Operations
 nnoremap <Leader><Leader>t :action RunClass<CR>
