@@ -31,3 +31,8 @@ bindkey -M viins "${terminfo[kcbt]}" reverse-menu-complete
 bindkey -M vicmd "${terminfo[kcbt]}" reverse-menu-complete
 
 autoload -U +X bashcompinit && bashcompinit
+
+# terraform completion
+if hash terraform 2> /dev/null; then
+  complete -o nospace -C terraform terraform
+fi
