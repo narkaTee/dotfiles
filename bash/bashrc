@@ -40,4 +40,9 @@ if [ -d "$HOME/.nvm" ]; then
     fi
 fi
 
+# terraform complection
+if hash terraform 2> /dev/null; then
+    complete -C /opt/homebrew/bin/terraform terraform
+fi
+
 . "$HOME/.config/setup/env.sh"
