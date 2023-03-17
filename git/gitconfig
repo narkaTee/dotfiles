@@ -1,6 +1,7 @@
 # vim: ft=gitconfig
 [alias]
-    graph = "log --graph --abbrev-commit --pretty=oneline --decorate"
+    graph = "log --graph --abbrev-commit --pretty='format:%C(auto)%h %C(auto,blue)%ad%C(auto)%d: %s' --date=short"
+    graphc = "log --graph --abbrev-commit --pretty=oneline --decorate"
     root = "rev-parse --show-toplevel"
     peek = "log -p --max-count=1"
     peeks = "peek --name-status"
