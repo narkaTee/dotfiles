@@ -9,7 +9,7 @@ nnoremap <Leader>ll :source ~/.ideavimrc<CR>:echo "Reloaded .ideavimrc"<CR>
 Plug 'tpope/vim-surround'
 Plug 'terryma/vim-multiple-cursors'
 Plug 'machakann/vim-highlightedyank'
-set clipboard=unnamed,ideaput
+set clipboard=unnamed,unnamedplus,ideaput
 set ignorecase
 set nrformats-=octal
 set number
