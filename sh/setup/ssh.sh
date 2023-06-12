@@ -7,10 +7,6 @@ if [ ! -z "$SSH_AUTH_SOCK" ]; then
     fi
 fi
 
-setup_gnome_kr() {
-    export $(gnome-keyring-daemon -s)
-}
-
 setup_ssh_pagent() {
     eval $(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")
 }
@@ -37,9 +33,8 @@ if hash ssh-pageant 2>/dev/null; then
     setup_ssh_pagent
 else
     # ssh-pagent not found use standard utils
-    if hash gnome-keyring-daemon 2>/dev/null; then
-        setup_gnome_kr
-    else
+    if ! hash gnome-keyring-daemon 2>/dev/null; then
+        # gnome keyring not found use cli tooling
         setup_cli_agent
     fi
 fi
