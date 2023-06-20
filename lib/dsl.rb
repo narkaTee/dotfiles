@@ -138,6 +138,10 @@ module Objects
 end
 
 module Utils
+  def self.interactive()
+    $stdout.tty?
+  end
+
   def self.does_differ(src, dst)
       out = `git diff --no-index --color --exit-code "#{dst}" "#{src}"`
       differs = $?.exitstatus == 1
@@ -146,9 +150,13 @@ module Utils
   end
 
   def self.confirm(text = "Apply Changes?")
-    print "#{text} (Y/n): "
-    answer = STDIN.gets.chomp
-    answer == "" || answer == "y"
+    if Utils.interactive
+      print "#{text} (Y/n): "
+      answer = STDIN.gets.chomp
+      answer == "" || answer == "y"
+    else
+      true
+    end
   end
 
   def self.git(url, location)
