@@ -14,6 +14,7 @@ task :install => [
   :git,
   :tmux,
   :mintty,
+  :alacritty,
   :ideavim,
   :bash,
   :zsh,
@@ -110,6 +111,12 @@ task :mintty do
     cp -f "mintty/minttyrc" "#{HOME}/.minttyrc"
   fi
   CMD
+end
+
+task :alacritty do
+  Cfg.directory "#{HOME}/.config/alacritty" do
+    source "alacritty"
+  end
 end
 
 task :ideavim do
