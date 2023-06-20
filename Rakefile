@@ -42,7 +42,7 @@ end
 
 task :test_sh do
   Dir.glob("sh/*/*.sh").each do |file|
-     `dash -n "#{file}"`
+     sh "dash -n '#{file}'"
      exit unless $?.exitstatus == 0
   end
 end
@@ -60,7 +60,7 @@ end
 
 task :test_bash do
   Dir.glob("bash/bashrc.d/*.bash").each do |file|
-     `bash -n "#{file}"`
+     sh "bash -n '#{file}'"
      exit unless $?.exitstatus == 0
   end
 end
