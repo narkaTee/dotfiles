@@ -55,6 +55,11 @@ if [ -d "$HOME/.local/bin" ]; then
     PATH="$PATH:$HOME/.local/bin"
 fi
 
+# init onepassword cli plugins if present
+if [ -f "$HOME/.config/op/plugins.sh" ]; then
+    source "$HOME/.config/op/plugins.sh"
+fi
+
 # Setup EDITOR and VISUAL
 if hash vim 2>/dev/null; then
     export EDITOR="vim"
