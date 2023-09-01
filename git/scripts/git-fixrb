@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
-# Usage: git fix <commit to fix>
+# Usage: git fixrb <commit to fix>
 
 if [ ! -n "$(git rev-parse --is-inside-work-tree 2>/dev/null)" ]; then
     >&2 echo "Not a git repository"
     exit 1
 fi
-commit=${1:-}
+if [ -z "$1" ]; then
+    >&2 echo "Not commit given"
+    exit 1
+fi
 
+commit="$1"
+if ! git rev-parse -q --verify "$commit" >/dev/null; then
+    >&2 echo "Could not find commit $commit"
+    exit 1
+fi
+current_branch_root="$(git rev-list --max-parents=0 HEAD)"
+full_commit="$(git rev-parse -q --verify "$commit")"
+
+# could be replaced by --autostash in the future
 need_stash=""
 if ! git diff --quiet 2>/dev/null; then
     need_stash="y"
@@ -14,6 +26,12 @@ fi
 
 git fix "$commit"
 test ! -z "$need_stash" && git stash push --keep-index -m "stash files before fixrb $commit"
-git rebase -i "$commit^1"
+
+if [ "$full_commit" == "$current_branch_root" ]; then
+    git rebase -i --root
+else
+    git rebase -i "$commit^1"
+fi
+
 test ! -z "$need_stash" && git stash pop
 exit $?
