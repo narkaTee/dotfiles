@@ -12,5 +12,9 @@ if [ -z "$commit" ]; then
     exit $?
 fi
 
+if ! git rev-parse -q --verify "$commit" >/dev/null; then
+    >&2 echo "Could not find commit $commit"
+    exit 1
+fi
 git commit --fixup "$commit"
 exit $?
