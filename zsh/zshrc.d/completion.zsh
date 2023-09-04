@@ -7,6 +7,10 @@ if type brew &>/dev/null; then
   FPATH=$(brew --prefix)/share/zsh/site-functions:$FPATH
 fi
 
+if [ -d "$HOME/.asdf/" ]; then
+  fpath=(${ASDF_DIR}/completions $fpath)
+fi
+
 ## initialize comp system
 autoload -Uz compinit
 compinit -d "$HOME/.cache/.zcompdump-${ZSH_VERSION}"

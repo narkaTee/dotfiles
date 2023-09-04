@@ -45,6 +45,10 @@ if [ -d "$HOME/.nvm" ]; then
     fi
 fi
 
+if [ -d "$HOME/.asdf/" ]; then
+    . "$HOME/.asdf/asdf.sh"
+fi
+
 # set PATH to include the global composer bin if it exists
 if [ -d "$HOME/.composer/vendor/bin" ]; then
     PATH="$PATH:$HOME/.composer/vendor/bin"
