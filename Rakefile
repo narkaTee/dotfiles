@@ -33,6 +33,10 @@ task :sh => :test_sh do
     purge
     source "sh/setup"
   end
+  # The default gnu coreutils colors for backup files do not play very well with the solarized theme
+  # "bright black" text is the same colors as the background. patch the colors and be happy.
+  # to keep the patches definitions somewhat up to date run it every time the dotfiles are installed
+  sh 'dircolors -p | sed "s/00;90/00;30/g" > "$HOME/.config/dircolors"'
 end
 
 task :direnv do

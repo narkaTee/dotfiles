@@ -4,6 +4,8 @@ if [ -f "$HOME/.zshrc.local" ]; then
     source "$HOME/.zshrc.local"
 fi
 
+. "$HOME/.config/setup/env-early.sh"
+
 if hash direnv 2>/dev/null; then
     emulate zsh -c "$(direnv export zsh)"
 fi

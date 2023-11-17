@@ -21,7 +21,6 @@ setopt auto_menu
 setopt complete_in_word
 setopt always_to_end
 
-eval "$(dircolors -b)"
 zstyle ':completion:*' menu select
 zstyle ':completion:*' special-dirs true
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
