@@ -20,6 +20,7 @@ task :install => [
   :zsh,
   :vim,
   :k9s,
+  :fonts,
   :macos
 ]
 
@@ -168,6 +169,13 @@ task :k9s do
   Cfg.directory "#{HOME}/.k9s/" do
     source "k9s"
   end
+end
+
+task :fonts do
+  next if !is_linux
+  sh 'install -m 700 -d "$HOME/.local/share/fonts"'
+  sh 'cp fonts/*.ttf "$HOME/.local/share/fonts"'
+  sh 'fc-cache'
 end
 
 task :macos do
