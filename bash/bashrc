@@ -7,6 +7,8 @@ esac
 # Disable XON/XOFF flow control
 stty -ixon
 
+. "$HOME/.config/setup/env-early.sh"
+
 . "$HOME/.config/setup/ssh.sh"
 . "$HOME/.config/setup/tools.sh"
 
