@@ -15,6 +15,11 @@ fi
 autoload -Uz compinit
 compinit -d "$HOME/.cache/.zcompdump-${ZSH_VERSION}"
 
+# 1password-cli completion
+if hash op 2> /dev/null; then
+  eval "$(op completion zsh)"; compdef _op op
+fi
+
 ## adjust comp settings
 unsetopt menu_complete
 setopt auto_menu

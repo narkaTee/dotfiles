@@ -24,6 +24,10 @@ if hash direnv 2>/dev/null; then
     eval "$(direnv hook bash)"
 fi
 
+if [ -f /etc/bash_completion ]; then
+     . /etc/bash_completion
+fi
+
 if type brew &>/dev/null && [ ! -z "$BASH_VERSION" ]; then
     HOMEBREW_PREFIX="$(brew --prefix)"
     if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
@@ -44,6 +48,11 @@ fi
 
 if [ -d "$HOME/.asdf/" ]; then
     . "$HOME/.asdf/completions/asdf.bash"
+fi
+
+# 1password-cli completion
+if hash op 2> /dev/null; then
+    source <(op completion bash)
 fi
 
 # terraform complection
