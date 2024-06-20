@@ -46,6 +46,8 @@ if [ -d "$HOME/.nvm" ]; then
 fi
 
 if [ -d "$HOME/.asdf/" ]; then
+    # we want asdf to also resolve "dynamic" versions like 20
+    export ASDF_NODEJS_LEGACY_FILE_DYNAMIC_STRATEGY="latest_available"
     . "$HOME/.asdf/asdf.sh"
 fi
 
