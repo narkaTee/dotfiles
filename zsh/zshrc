@@ -58,4 +58,7 @@ unsetopt flowcontrol
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-source ~/.config/zsh-plugins/fast_syntax_highlighting/fast-syntax-highlighting.plugin.zsh
+source ~/.config/zsh-plugins/zsh_syntax_highlighting/zsh-syntax-highlighting.zsh
+typeset -A ZSH_HIGHLIGHT_STYLES
+ZSH_HIGHLIGHT_STYLES[path]='fg=magenta'
+ZSH_HIGHLIGHT_HIGHLIGHTERS+=(brackets root)
