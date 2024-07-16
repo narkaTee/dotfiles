@@ -140,8 +140,12 @@ end
 task :install_zsh_plugins do
   Cfg.git_directory("#{HOME}/.config/zsh-plugins/", {
     :powerlevel10k => "https://github.com/romkatv/powerlevel10k.git",
-    :fast_syntax_highlighting => "https://github.com/zdharma-continuum/fast-syntax-highlighting.git"
+    :zsh_syntax_highlighting => "https://github.com/zsh-users/zsh-syntax-highlighting.git"
   })
+  sh <<-CMD.chomp
+  # delete removed plugins
+  rm -rf "#{HOME}/.config/zsh-plugins/fast_syntax_highlighting"
+  CMD
 end
 
 task :vim => :install_vim_plugins do
