@@ -5,6 +5,7 @@ set -o pipefail
 current_branch=$(git symbolic-ref -q HEAD 2>/dev/null)
 current_branch=${current_branch#refs/heads/}
 input_branch=${1:-}
+protected_branches="master|main|develop|release"
 
 if [ -z "$current_branch" ] && [ -z "$input_branch" ]; then
     >&2 echo "No branch given and current branch could not be auto detected!"
@@ -13,5 +14,5 @@ fi
 
 branch=${input_branch:-$current_branch}
 
-git branch --merged "$branch" | grep -E -v "(^\*|master|develop)" | xargs -r git branch -d
+git branch --merged "$branch" | grep -E -v "(^\*|$protected_branches)" | xargs -r git branch -d
 exit $?
