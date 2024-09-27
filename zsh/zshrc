@@ -26,6 +26,7 @@ source ~/.config/zsh-plugins/powerlevel10k/powerlevel10k.zsh-theme
 . "$HOME/.config/setup/ssh.sh"
 . "$HOME/.config/setup/tools.sh"
 . "$HOME/.config/bashrc.d/z.sh"
+. "$HOME/.config/bashrc.d/zz.sh"
 
 # vi mode
 bindkey -v
