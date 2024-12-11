@@ -12,3 +12,7 @@ fi
 if [ -f "$HOME/.config/env.local.sh" ]; then
   . "$HOME/.config/env.local.sh"
 fi
+
+if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ]; then
+    PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
+fi
