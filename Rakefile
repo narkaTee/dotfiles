@@ -181,6 +181,7 @@ end
 
 task :fonts do
   next if !is_linux
+  next if !has_command("fc-cache")
   sh 'install -m 700 -d "$HOME/.local/share/fonts"'
   sh 'cp fonts/*.ttf "$HOME/.local/share/fonts"'
   sh 'fc-cache'
