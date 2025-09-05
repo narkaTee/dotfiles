@@ -32,8 +32,11 @@ if hash ssh-pageant 2>/dev/null; then
     # start ssh-pageant (cygwin)
     setup_ssh_pagent
 else
-    # ssh-pagent not found use standard utils
-    if ! hash gnome-keyring-daemon 2>/dev/null; then
+    # ssh-pagent not found use other utils
+    if [ -e "$HOME/.1password/agent.sock" ]; then
+        # 1pw socket found use that
+        export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
+    elif ! hash gnome-keyring-daemon 2>/dev/null; then
         # gnome keyring not found use cli tooling
         setup_cli_agent
     fi
