@@ -55,8 +55,8 @@ module Objects
       @path = path
     end
 
-    def exists?()
-      File.exists?(@path)
+    def exist?()
+      File.exist?(@path)
     end
   end
 
@@ -71,7 +71,7 @@ module Objects
       shouldUpdate = true
       sh "rm -rf '#{@path}'" if @purge
 
-      if !@purge && exists?() then
+      if !@purge && exist?() then
         shouldUpdate = Utils.does_differ @source, @path
         shouldUpdate = Utils.confirm if shouldUpdate
       end
@@ -90,7 +90,7 @@ module Objects
 
     def install(permissions, src, diff)
       shouldUpdate = true
-      if diff && exists?() then
+      if diff && exist?() then
         shouldUpdate = Utils.does_differ src, @path
         shouldUpdate = Utils.confirm if shouldUpdate
       end
@@ -113,7 +113,7 @@ module Objects
     def sync()
       path = Pathname.new(@path)
       puts "Updating git folder '#{path}'"
-      FileUtils.mkdir_p path unless exists?
+      FileUtils.mkdir_p path unless exist?
 
       allowed_dirs = @repos.keys.map { |k| k.to_s }
       to_delete = path.children.select { |name|
