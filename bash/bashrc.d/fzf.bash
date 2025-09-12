@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 if hash fzf 2> /dev/null; then
     eval "$(fzf --bash)"
 
@@ -9,6 +10,7 @@ if hash fzf 2> /dev/null; then
     # - https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-bind
 
     # setup fzf to always print the key used to accept, we'll act on it in the post processing
+    # shellcheck disable=SC2034
     FZF_CTRL_R_OPTS="--expect 'end,enter'"
 
     # post processing to enable command execution conditionally
@@ -30,5 +32,6 @@ if hash fzf 2> /dev/null; then
     # I could not get the bind -x variant to work because I don't know how to trigger the
     # "accept-line" readline command from the shell-command mode.
     # This works, so good enought for now! until it blows up.
+    # shellcheck disable=SC2016
     bind '"\C-r": " \C-e\C-u\C-y\ey\C-u`__fzf_history__`\e\C-e\er\e^\C-x\C-o\C-x\C-p"'
 fi

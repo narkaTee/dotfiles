@@ -1,4 +1,5 @@
-test ! -z "$ZSH_VERSION" && return
+# shellcheck shell=bash disable=SC2155 # there are a lot of direct asignments in here but with correct error handling
+test -n "$ZSH_VERSION" && return
 
 # Prep return status variable so we can use arithmetic on it
 declare -i CMD_RET
@@ -17,7 +18,7 @@ _prompt_ret_code() {
 _prompt_num_jobs() {
     local -i jobcount
 
-    while read; do
+    while read -r; do
         ((jobcount++))
     done < <(jobs -p)
 
@@ -46,16 +47,16 @@ _prompt_git() {
     _apply_color "$branch" "yellow bold"
 
     upstream=$(_prompt_git_upstream_status)
-    [ ! -z "$upstream" ] &&
+    [ -n "$upstream" ] &&
         _apply_color " $upstream" "yellow"
 
     state=$(_prompt_git_state)
-    [ ! -z "$state" ] &&
+    [ -n "$state" ] &&
         _apply_color " ($state)" "red"
 
     # get local repo name
     reponame=$(_prompt_git_reponame)
-    [ ! -z "$reponame" ] &&
+    [ -n "$reponame" ] &&
         _apply_color " $reponame" "blue bold"
 
     # WD dirty
@@ -110,7 +111,7 @@ prompt() {
             PS1+='\$ '
         ;;
         off)
-            if [ ! -z "$_PS1_OLD" ]; then
+            if [ -n "$_PS1_OLD" ]; then
                 PS1="$_PS1_OLD"
                 return
             fi
@@ -130,10 +131,10 @@ _prompt_statusline() {
         local fromstatus="$(tput fsl)"
     } > /dev/null 2>&1
     #... and return if they are not available
-    if [ -z $tostatus ] || [ -z $fromstatus ]; then
+    if [ -z "$tostatus" ] || [ -z "$fromstatus" ]; then
         return;
     fi
-    echo "\001${tostatus}\u@\h${fromstatus}\002"
+    printf "\001%s\u@\h%s\002" "$tostatus" "$fromstatus"
 }
 
 # enable custom prompt

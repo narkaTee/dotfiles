@@ -23,6 +23,26 @@ task :install => [
   :fonts,
   :macos
 ]
+task :check => [
+  :test_sh,
+  :test_bash,
+  :shellcheck
+]
+
+task :shellcheck do
+  dirs = ["git/scripts", "sh", "bash/bashrc.d"]
+  ignore = ["bash/bashrc.d/z.sh"]
+  files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }.select { |f| File.file?(f) && !ignore.include?(f) }
+  failed = false
+  files.each do |file|
+    puts "Checking #{file}"
+    sh "shellcheck '#{file}'" do |ok|
+      failed ||= !ok
+      puts "check failed for #{file}!" unless ok
+    end
+  end
+  raise "shellcheck failed, see output above" if failed
+end
 
 task :sh => :test_sh do
   Cfg.directory "#{HOME}/.config/shrc.d/" do

@@ -1,8 +1,10 @@
+# shellcheck shell=bash
 ## COLORS AND FORMATTING
 # Output text with terminal ctrl "format" and reset it
 _output_with_format() {
-    local output="$1" format="$2" reset="\001$(tput sgr0)\002"
-    printf "$format$output$reset"
+    # shellcheck disable=SC2155
+    local output="$1" format="$2" reset="$(tput sgr0)"
+    printf "%s%s\001%s\002" "$format" "$output" "$reset"
 }
 
 # Output test with a color
@@ -30,6 +32,6 @@ _get_color() {
             *) printf '_get_color: unknown color or style "%s"' "$1"; return 1 ;;
         esac
     done
-    printf "\001$color\002"
+    printf "\001%s\002" "$color"
 }
 

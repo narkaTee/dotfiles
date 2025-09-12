@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # colorized ls if possible
 export LS_OPTIONS='--color=auto'
 
