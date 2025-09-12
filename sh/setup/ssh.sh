@@ -1,5 +1,6 @@
+# shellcheck shell=sh
 # Predictable ssh auth sock
-if [ ! -z "$SSH_AUTH_SOCK" ]; then
+if [ -z "$SSH_AUTH_SOCK" ]; then
     permanent="$HOME/.ssh_auth_sock"
     if [ "$SSH_AUTH_SOCK" != "$permanent" ]; then
         ln -sf "$SSH_AUTH_SOCK" "$permanent"
@@ -8,18 +9,18 @@ if [ ! -z "$SSH_AUTH_SOCK" ]; then
 fi
 
 setup_ssh_pagent() {
-    eval $(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")
+    eval "$(/usr/bin/ssh-pageant -q -r -a "/tmp/.ssh-pageant-$USERNAME")"
 }
 
 setup_cli_agent() {
-    ssh-add -l &>/dev/null
+    ssh-add -l > /dev/null 2>&1
     if [ "$?" -eq "2" ]; then
-        test -r ~/.ssh-agent && eval "$(<~/.ssh-agent)" >/dev/null
+        test -r ~/.ssh-agent && . ~/.ssh-agent >/dev/null
 
-        ssh-add -l &>/dev/null
+        ssh-add -l > /dev/null 2>&1
         if [ "$?" -eq "2" ]; then
             (umask 066; ssh-agent > ~/.ssh-agent)
-            eval "$(<~/.ssh-agent)" >/dev/null
+            . ~/.ssh-agent >/dev/null
             ssh-add
         fi
     fi

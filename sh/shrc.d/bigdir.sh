@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 bigdir() {
     dir="$1"
     if [ -z "$dir" ]; then

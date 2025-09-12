@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # Load posix scripts
 if [ -d "$HOME/.config/shrc.d/" ]; then
     for file in "$HOME"/.config/shrc.d/* ; do
@@ -8,7 +9,7 @@ fi
 
 # setup brew
 if [ -d "/home/linuxbrew/.linuxbrew" ]; then
-    eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
 # source sdkman if it's installed
@@ -23,8 +24,8 @@ fi
 
 # Source rvm if it's installed
 # $? will be 1 on a new shell if this is not in a extra if and rvm is not present.
-if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
-    source "$HOME/.rvm/scripts/rvm"
+if [ -f "$HOME/.rvm/scripts/rvm" ]; then
+    . "$HOME/.rvm/scripts/rvm"
 fi
 
 if [ -d "$HOME/.cargo/bin" ]; then
@@ -38,8 +39,11 @@ if [ -d "$HOME/.nvm" ]; then
     if [ -s "$NVM_DIR/nvm.sh" ]; then
         # To speed up the slow starup time
         # https://github.com/nvm-sh/nvm/issues/539#issuecomment-245791291
+        # shellcheck disable=SC2240
         \. "$NVM_DIR/nvm.sh" --no-use  # This loads nvm
+        # shellcheck disable=SC2142
         alias node='unalias node ; unalias npm ; nvm use default ; node $@'
+        # shellcheck disable=SC2142
         alias npm='unalias node ; unalias npm ; nvm use default ; npm $@'
         alias nvmsrc='. "$NVM_DIR/nvm.sh"'
     fi
@@ -63,7 +67,7 @@ fi
 
 # init onepassword cli plugins if present
 if [ -f "$HOME/.config/op/plugins.sh" ]; then
-    source "$HOME/.config/op/plugins.sh"
+    . "$HOME/.config/op/plugins.sh"
 fi
 
 # Setup EDITOR and VISUAL

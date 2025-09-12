@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # Convenience wrapper for minikube docker env setup
 minikube_docker_env() {
     if hash minikube 2>/dev/null; then

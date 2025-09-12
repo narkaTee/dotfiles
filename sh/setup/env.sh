@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # set PATH to include git-scripts if it exists
 if [ -d "$HOME/.config/git/scripts" ]; then
     PATH="$PATH:$HOME/.config/git/scripts"
@@ -10,7 +11,7 @@ if [ -d "$HOME/bin" ]; then
 fi
 
 if [ -f "$HOME/.config/env.local.sh" ]; then
-  . "$HOME/.config/env.local.sh"
+    . "$HOME/.config/env.local.sh"
 fi
 
 if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ]; then

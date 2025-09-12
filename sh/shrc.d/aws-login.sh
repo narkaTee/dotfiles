@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 aws_login() {
     if [ -n "$1" ]; then
         export AWS_PROFILE="$1"

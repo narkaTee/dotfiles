@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # Convenience wrapper for chef shell-init.
 # it's too damn slow to put it in bash_profile...
 chef_init() {
