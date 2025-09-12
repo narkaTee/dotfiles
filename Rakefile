@@ -26,6 +26,7 @@ task :install => [
 task :check => [
   :test_sh,
   :test_bash,
+  :test_zsh,
   :shellcheck
 ]
 
@@ -67,7 +68,7 @@ task :direnv do
 end
 
 task :test_sh do
-  Dir.glob("sh/*/*.sh").each do |file|
+  Dir.glob("sh/*/*").each do |file|
      sh "dash -n '#{file}'"
      exit unless $?.exitstatus == 0
   end
@@ -85,7 +86,8 @@ task :bash => [:test_bash, :sh] do
 end
 
 task :test_bash do
-  Dir.glob("bash/bashrc.d/*.bash").each do |file|
+  files = Dir.glob("bash/bash*").select { |f| File.file?(f) } + Dir.glob("bash/bashrc.d/*")
+  files.each do |file|
      sh "bash -n '#{file}'"
      exit unless $?.exitstatus == 0
   end
@@ -148,13 +150,21 @@ task :ideavim do
   Cfg.file("0644", src: ".ideavimrc")
 end
 
-task :zsh => [:install_zsh_plugins, :sh, :bash] do
+task :zsh => [:test_zsh, :install_zsh_plugins, :sh, :bash] do
   Cfg.file("0644", src: "zsh/zshrc", dst: "#{HOME}/.zshrc")
   Cfg.directory "#{HOME}/.config/zshrc.d/" do
     purge
     source "zsh/zshrc.d"
   end
   Cfg.file("0644", src: "zsh/p10k.zsh", dst: "#{HOME}/.p10k.zsh")
+end
+
+task :test_zsh do
+  files = ["zsh/zshrc"] + Dir.glob("zsh/**/*.zsh")
+  files.each do |file|
+    sh "zsh -n '#{file}'"
+    exit unless $?.exitstatus == 0
+  end
 end
 
 task :install_zsh_plugins do
