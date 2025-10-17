@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 _tmux_auto_attach() {
-    if [ "$#" -eq 0 ]; then
+    if [ "$#" -eq 0 ] && [ -z "$TMUX" ]; then
         sessions="$("tmux" list-sessions 2> /dev/null)"
 
         if [ -z "$sessions" ]; then
