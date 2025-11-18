@@ -3,7 +3,7 @@ test -n "$ZSH_VERSION" && return
 
 # Prep return status variable so we can use arithmetic on it
 declare -i CMD_RET
-PROMPT_COMMAND='CMD_RET=$?;'"${PROMPT_COMMAND}"
+PROMPT_COMMAND='CMD_RET=$?;auto_update_term_tittle;'"${PROMPT_COMMAND}"
 # trim path to 3 elements
 PROMPT_DIRTRIM=3
 
@@ -93,7 +93,7 @@ prompt() {
                 _GIT_SPEED="$git_speed ms"
             fi
 
-            PS1="$(_prompt_statusline)"
+            PS1=""
             # If git is slow skip the git prompt.
             # Can be the case on: raspberry pi, cygwin + BLODA
             if [ $_GIT_SLOW = 'no'  ]; then
@@ -122,19 +122,6 @@ prompt() {
             return 1
         ;;
     esac
-}
-
-_prompt_statusline() {
-    # silently try to fetch terminal sequences...
-    {
-        local tostatus="$(tput tsl)"
-        local fromstatus="$(tput fsl)"
-    } > /dev/null 2>&1
-    #... and return if they are not available
-    if [ -z "$tostatus" ] || [ -z "$fromstatus" ]; then
-        return;
-    fi
-    printf "\001%s\u@\h%s\002" "$tostatus" "$fromstatus"
 }
 
 # enable custom prompt

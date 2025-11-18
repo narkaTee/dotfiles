@@ -23,6 +23,11 @@ task :install => [
   :fonts,
   :macos
 ]
+task :shell => [
+  :sh,
+  :bash,
+  :zsh
+]
 task :check => [
   :test_sh,
   :test_bash,
