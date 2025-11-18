@@ -4,3 +4,5 @@ if [ -f "$HOME/.config/dircolors" ]; then
 else
     eval "$(dircolors -b)"
 fi
+
+. "$HOME/.config/setup/helper_functions.sh"

@@ -10,6 +10,8 @@ if hash direnv 2>/dev/null; then
     emulate zsh -c "$(direnv export zsh)"
 fi
 
+auto_update_term_tittle
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block, everything else may go below.
@@ -61,3 +63,5 @@ ZSH_HIGHLIGHT_HIGHLIGHTERS+=(brackets root)
 # with solarized colors this paste highlight is not as intrusive as the
 # default.
 zle_highlight=(paste:bg=black)
+
+precmd_functions+=(auto_update_term_tittle)
