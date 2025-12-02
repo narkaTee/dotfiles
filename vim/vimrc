@@ -11,6 +11,7 @@ source $HOME/.vim/custom/general-settings.vim
 source $HOME/.vim/custom/statusline.vim
 source $HOME/.vim/custom/ale.vim
 source $HOME/.vim/custom/mappings.vim
+source $HOME/.vim/custom/fzf.vim
 if filereadable(expand('$HOME/.config/tmux/plugins/vim-tmux-navigator/plugin/tmux_navigator.vim'))
   source $HOME/.config/tmux/plugins/vim-tmux-navigator/plugin/tmux_navigator.vim
 endif
