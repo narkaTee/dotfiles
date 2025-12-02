@@ -205,8 +205,11 @@ task :install_vim_plugins do
     :vim_airline_themes => "https://github.com/vim-airline/vim-airline-themes",
     :vim_fugitive => "https://github.com/tpope/vim-fugitive.git",
     :vim_visual_multi => "https://github.com/mg979/vim-visual-multi.git",
-    :tmuxline => "https://github.com/edkolev/tmuxline.vim.git",
-    :ale => "https://github.com/dense-analysis/ale.git"
+    # As long as I don't change the theme it is easier to just keep the
+    # exported config. I want the pane-active-border-style to differ and
+    # there is no easy way to just change this color.
+    #:tmuxline => "https://github.com/edkolev/tmuxline.vim.git",
+    :ale => "https://github.com/dense-analysis/ale.git",
   })
 end
 
