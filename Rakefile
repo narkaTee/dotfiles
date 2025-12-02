@@ -210,6 +210,7 @@ task :install_vim_plugins do
     # there is no easy way to just change this color.
     #:tmuxline => "https://github.com/edkolev/tmuxline.vim.git",
     :ale => "https://github.com/dense-analysis/ale.git",
+    :fzf_vim => "https://github.com/junegunn/fzf.vim.git",
   })
 end
 

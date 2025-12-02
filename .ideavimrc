@@ -59,9 +59,10 @@ nnoremap <Leader>f :action Find<CR>
 nnoremap <Leader>c :action GotoClass<CR>
 nnoremap <Leader>a :action GotoAction<CR>
 nnoremap <Leader>t :action GotoTest<CR>
-nnoremap <Leader>b :action GotoDeclaration<CR>
+nnoremap <Leader>o :action GotoFile<CR>
 nnoremap <Leader>q :action QuickJavaDoc<CR>
 nnoremap <Leader>d :action GotoDeclaration<CR>
+nnoremap <Leader>b :action Switcher<CR>
 
 " Run Operations
 nnoremap <Leader><Leader>t :action RunClass<CR>
