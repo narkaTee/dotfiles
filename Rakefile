@@ -131,6 +131,7 @@ task :tmux => :install_tmux_plugins do
 end
 
 task :install_tmux_plugins do
+  sh 'git submodule update --init'
   Cfg.directory "#{HOME}/.config/tmux/plugins/" do
     purge
     source "tmux/plugins"
