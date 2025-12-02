@@ -203,8 +203,9 @@ task :install_vim_plugins do
     :vim_airline => "https://github.com/vim-airline/vim-airline",
     :vim_airline_themes => "https://github.com/vim-airline/vim-airline-themes",
     :vim_fugitive => "https://github.com/tpope/vim-fugitive.git",
-    :vim_multiple_cursor => "http://github.com/terryma/vim-multiple-cursors.git",
-    :tmuxline => "https://github.com/edkolev/tmuxline.vim.git"
+    :vim_visual_multi => "https://github.com/mg979/vim-visual-multi.git",
+    :tmuxline => "https://github.com/edkolev/tmuxline.vim.git",
+    :ale => "https://github.com/dense-analysis/ale.git"
   })
 end
 
