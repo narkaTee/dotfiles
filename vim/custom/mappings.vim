@@ -11,3 +11,8 @@ nnoremap <A-Right> <C-i>
 " terminal emulators do not send alt keys
 nnoremap <Esc>[1;3D <C-o>
 nnoremap <Esc>[1;3C <C-i>
+
+nnoremap <Leader>n :bnext<CR>
+nnoremap <Leader>p :bprev<CR>
+nnoremap <C-b>o :%bdelete\|edit #\|normal `"<CR>
+nnoremap <C-b>c :bd<CR>
