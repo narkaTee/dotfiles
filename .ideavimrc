@@ -24,6 +24,13 @@ set visualbell
 set hlsearch
 noremap <Leader>/ <Esc>:nohlsearch<CR>
 
+" Buffer operations
+nnoremap <Leader>n :bnext<CR>
+nnoremap <Leader>p :bprev<CR>
+" closing all other windows is the equivalent to closing all other buffers in intellij
+nnoremap <C-b>o <C-w>o
+nnoremap <C-b>c :bd<CR>
+
 " When finding =, include the whitespace around it!
 noremap t= /\s*=<CR>
 noremap T= ?=\s*?e<CR>
