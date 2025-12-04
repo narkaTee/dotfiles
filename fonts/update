@@ -1,7 +1,7 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 set -e
 
-tmp="$(dirname "$(readlink -f -- "$0")")/tmp"
+tmp="$(dirname "${BASH_SOURCE[0]}")/tmp"
 
 mkdir -p "$tmp/extracted"
 
