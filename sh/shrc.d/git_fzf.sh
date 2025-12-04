@@ -1,11 +1,9 @@
-# shellcheck shell=sh
+# shellcheck shell=bash
 
 if hash fzf 2> /dev/null; then
-    __git_fzf_script="$0"
+    __git_fzf_script="${BASH_SOURCE[0]}"
 
     __git_fzf_list_branches() {
-        # Yes column and the parameters are not posix compliant but it will only be run on bash and zsh
-        # shellcheck disable=SC3003
         git branch "$@" --color=always --sort=-committerdate --sort=-HEAD --format=$'%(HEAD) %(color:yellow)%(refname:short) %(color:green)(%(committerdate:relative))\t%(color:blue)%(subject)%(color:reset)' | column -ts$'\t'
     }
 
