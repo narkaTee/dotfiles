@@ -55,6 +55,35 @@ if [ -d "$HOME/.asdf/" ]; then
     . "$HOME/.asdf/asdf.sh"
 fi
 
+if [ -d "$HOME/.n-vm/" ]; then
+    export N_PREFIX="$HOME/.n-vm/"
+    export PATH="$PATH:$HOME/.n-vm/repo/bin:$HOME/.n-vm/bin"
+else
+    n() {
+        export N_PREFIX="$HOME/.n-vm"
+        n_update
+        unset -f n
+    }
+fi
+n_update() {
+    __n_latest_version="$(curl -sS https://api.github.com/repos/tj/n/releases/latest | jq -r .tag_name)"
+    if [ ! -d "$N_PREFIX" ]; then
+        echo "n is not installed, install? [y] or abort with ctrl+c"
+    else
+        echo "updating n to $__n_latest_version? [y] or abort with ctrl+c"
+    fi
+    # shellcheck disable=SC2034
+    if read -r n_resp; then
+        if [ ! -d "$N_PREFIX" ]; then
+            mkdir -p "$N_PREFIX"
+            git clone https://github.com/tj/n.git "$N_PREFIX/repo" || exit
+        fi
+        (cd "$N_PREFIX/repo" || exit
+        git checkout -f "$__n_latest_version")
+        export PATH="$PATH:$HOME/.n-vm/repo/bin:$HOME/.n-vm/bin"
+    fi
+}
+
 # set PATH to include the global composer bin if it exists
 if [ -d "$HOME/.composer/vendor/bin" ]; then
     PATH="$PATH:$HOME/.composer/vendor/bin"
