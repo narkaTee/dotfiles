@@ -45,5 +45,13 @@ history = 100000
 [selection]
 save_to_clipboard = true
 
+# The default behaviour of shift + insert is to paste the primary
+# selection clipboard which is NOT the normal clipboard.
+# The Paste action of alacritty uses the normal clipboard
+[[keyboard.bindings]]
+key = "Insert"
+mods = "Shift"
+action = "Paste"
+
 [window]
 startup_mode = "Maximized"
