@@ -15,5 +15,25 @@ if [ -f "$HOME/.config/env.local.sh" ]; then
 fi
 
 if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ]; then
-    PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
+    # shellcheck disable=SC3028
+    case "$OSTYPE" in
+        linux*)
+            # works around: https://youtrack.jetbrains.com/issue/TBX-4599/Shell-scripts-in-linux-dont-detach
+            mkdir -p "$HOME/bin"
+            for file in "$HOME"/.local/share/JetBrains/Toolbox/scripts/* ; do
+                name="$(basename "$file")"
+                if [ -f "$HOME/bin/$name" ]; then
+                    continue
+                fi
+                cat << EOF > "$HOME/bin/$name"
+#/usr/bin/env sh
+nohup $file "\$@" >/dev/null 2>&1 &
+EOF
+                chmod +x "$HOME/bin/$name"
+            done
+            ;;
+        *)
+            PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
+            ;;
+    esac
 fi
