@@ -1,7 +1,9 @@
-# shellcheck shell=bash
+#!/usr/bin/env bash
 __tldr_cache="$HOME/.config/tldr/repo"
 __tldr_pages="$__tldr_cache/pages"
-__tldr_script="${BASH_SOURCE[0]}"
+# works for zsh and bash
+# shellcheck disable=SC2296
+__tldr_script="${BASH_SOURCE[0]:-${(%):-%x}}"
 
 tldr_update() {
     if [ ! -d "$__tldr_cache" ]; then
