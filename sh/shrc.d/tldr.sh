@@ -1,21 +1,37 @@
 #!/usr/bin/env bash
-__tldr_cache="$HOME/.config/tldr/repo"
+__tldr_cache="$HOME/.config/tldr/repos"
+__tldr_cache_tldr="$__tldr_cache/tldr"
+__tldr_cache_kb="$__tldr_cache/kb"
 __tldr_pages="$__tldr_cache/pages"
 # works for zsh and bash
 # shellcheck disable=SC2296
 __tldr_script="${BASH_SOURCE[0]:-${(%):-%x}}"
 
-tldr_update() {
-    if [ ! -d "$__tldr_cache" ]; then
-        mkdir -p "$__tldr_cache"
+tldr_update_cache() {
+    target="$1"
+    repo="$2"
+    if [ ! -d "$target" ]; then
+        echo "tldr pages cache not found, updating..."
+        mkdir -p "$target"
     fi
 
-    if [ ! -d "$__tldr_cache/.git" ]; then
-        git clone --depth=1 https://github.com/tldr-pages/tldr "$__tldr_cache"
-    else
-        cd "$__tldr_cache" || exit
-        git pull
+    if [ ! -d "$target/.git" ]; then
+        git clone --depth=1 "$repo" "$target"
     fi
+
+    if [ -f "$target/.git/FETCH_HEAD" ] &&  [ $((($(date '+%s') - $(stat -c %Y "$target/.git/FETCH_HEAD"))/60/60/24)) -gt 10 ]; then
+        echo "tldr pages cache is older 10 days, updating..."
+        (cd "$target" || exit
+        git pull)
+    fi
+}
+
+tldr_update_kb() {
+    tldr_update_cache "$__tldr_cache_kb" "https://github.com/narkaTee/tldr-kb"
+}
+
+tldr_update_tldr() {
+    tldr_update_cache "$__tldr_cache_tldr" "https://github.com/tldr-pages/tldr"
 }
 
 if [ ! -t 0 ]; then
@@ -29,17 +45,15 @@ if [ ! -t 0 ]; then
         "
 fi
 
-# --preview "sed 's/^# //; s/^> //' '$__tldr_pages/{1}'" \
 tldr() {
-    if [ ! -d "$__tldr_pages" ]; then
-        echo "tldr pages cache not found, updating..."
-        tldr_update
-    fi
-    find "$__tldr_pages" -name '*.md' \
-        | sed "s#^$__tldr_pages/##" \
+    tldr_update_kb
+    tldr_update_tldr
+
+    find "$__tldr_cache/"*/pages -name '*.md' \
+        | sed "s#^$__tldr_cache/##" \
         | fzf \
             --scheme path --tiebreak=end,pathname,length \
             -q "$*" \
-            --preview "cat '$__tldr_pages/{1}' | $__tldr_script" \
-            --bind "enter:execute(cat $__tldr_pages/{1} | $__tldr_script | less -r)"
+            --preview "cat '$__tldr_cache/{1}' | $__tldr_script" \
+            --bind "enter:execute(cat $__tldr_cache/{1} | $__tldr_script | less -r)"
 }
