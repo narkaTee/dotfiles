@@ -215,8 +215,8 @@ task :install_vim_plugins do
 end
 
 task :k9s do
-  Cfg.directory "#{HOME}/.k9s/" do
-    source "k9s"
+  Cfg.directory "#{HOME}/.config/k9s/plugins" do
+    source "k9s/plugins"
   end
 end
 
