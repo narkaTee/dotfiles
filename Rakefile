@@ -57,6 +57,7 @@ task :sh => :test_sh do
   end
   Cfg.directory "#{HOME}/.config/setup/" do
     purge
+    ignore ['env.local.sh']
     source "sh/setup"
   end
   # The default gnu coreutils colors for backup files do not play very well with the solarized theme

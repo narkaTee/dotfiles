@@ -10,8 +10,8 @@ if [ -d "$HOME/bin" ]; then
     PATH="$HOME/bin:$PATH"
 fi
 
-if [ -f "$HOME/.config/env.local.sh" ]; then
-    . "$HOME/.config/env.local.sh"
+if [ -f "$HOME/.config/setup/env.local.sh" ]; then
+    . "$HOME/.config/setup/env.local.sh"
 fi
 
 if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ]; then
