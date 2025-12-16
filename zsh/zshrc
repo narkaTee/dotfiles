@@ -58,7 +58,7 @@ unsetopt flowcontrol
 source ~/.config/zsh-plugins/zsh_syntax_highlighting/zsh-syntax-highlighting.zsh
 typeset -A ZSH_HIGHLIGHT_STYLES
 ZSH_HIGHLIGHT_STYLES[path]='fg=magenta'
-ZSH_HIGHLIGHT_HIGHLIGHTERS+=(brackets root)
+ZSH_HIGHLIGHT_HIGHLIGHTERS+=(brackets)
 
 # with solarized colors this paste highlight is not as intrusive as the
 # default.
