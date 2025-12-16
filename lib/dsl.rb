@@ -61,15 +61,20 @@ module Objects
   end
 
   class CfgDirectory < FilesystemResource
-    include Configurable.with(:purge, :source)
+    include Configurable.with(:purge, :ignore, :source)
     def initialize(path)
       super(path)
       @purge = false
+      @ignore = []
     end
 
     def apply()
       shouldUpdate = true
-      sh "rm -rf '#{@path}'" if @purge
+      if @purge && exist?() then
+        sh "find '#{@path}' -type f "+
+          @ignore.map {|p| "! -name '#{p}'"}.join(' ') +
+          " -delete"
+      end
 
       if !@purge && exist?() then
         shouldUpdate = Utils.does_differ @source, @path
