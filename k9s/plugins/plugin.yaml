@@ -28,3 +28,29 @@ plugins:
     args:
       - -c
       - "kubectl events --context $CONTEXT --namespace $NAMESPACE --for $RESOURCE_NAME.${RESOURCE_GROUP:+.RESOURCE_GROUP}/$NAME --watch"
+
+  debugContainer:
+    shortCut: Shift-D
+    description: Debug container
+    dangerous: true
+    scopes:
+      - containers
+    command: bash
+    background: false
+    confirm: true
+    args:
+      - -c
+      - kubectl debug -it --context $CONTEXT -n=$NAMESPACE $POD --target=$NAME --share-processes --profile netadmin --image ghcr.io/narkatee/debug-container:latest
+
+  debugPod:
+    shortCut: Shift-D
+    description: Debug pod
+    dangerous: true
+    scopes:
+      - pod
+    command: bash
+    background: false
+    confirm: true
+    args:
+      - -c
+      - kubectl debug -it --context $CONTEXT -n=$NAMESPACE $NAME --profile netadmin --image ghcr.io/narkatee/debug-container:latest
