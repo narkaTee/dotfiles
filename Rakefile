@@ -89,9 +89,8 @@ task :bash => [:test_bash, :sh] do
   end
   Cfg.file("0644", dst: "#{HOME}/.bashrc", src: "bash/bashrc")
   Cfg.file("0644", dst: "#{HOME}/.bash_profile", src: "bash/bash_profile")
-  Cfg.directory "#{HOME}/bin/" do
-    source "bash/bin/"
-  end
+  sh 'install -m 700 -d "$HOME/bin"'
+  sh 'cp bash/bin/* "$HOME/bin/"'
 end
 
 task :test_bash do
