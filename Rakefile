@@ -36,7 +36,7 @@ task :check => [
 ]
 
 task :shellcheck do
-  dirs = ["git/scripts", "sh", "bash/bashrc.d"]
+  dirs = ["git/scripts", "sh", "bash/bashrc.d", "bash/bin"]
   ignore = ["bash/bashrc.d/z.sh"]
   files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }.select { |f| File.file?(f) && !ignore.include?(f) }
   failed = false
