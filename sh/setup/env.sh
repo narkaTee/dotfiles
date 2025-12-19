@@ -14,7 +14,7 @@ if [ -f "$HOME/.config/setup/env.local.sh" ]; then
     . "$HOME/.config/setup/env.local.sh"
 fi
 
-if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ]; then
+if [ -d "$HOME/.local/share/JetBrains/Toolbox/scripts" ] && [ -n "$(ls -A "$HOME"/.local/share/JetBrains/Toolbox/scripts/)" ]; then
     # shellcheck disable=SC3028
     case "$OSTYPE" in
         linux*)
