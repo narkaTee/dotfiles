@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SANDBOX_IMAGE="ghcr.io/narkatee/sandbox-container:latest"
+
+detect_container_engine() {
+    if command -v podman >/dev/null 2>&1; then
+        echo "podman"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "docker"
+    else
+        echo "Error: Neither podman nor docker found" >&2
+        exit 1
+    fi
+}
+
+CONTAINER_ENGINE="${CONTAINER_ENGINE:-$(detect_container_engine)}"
+
+is_podman() {
+    [[ "$CONTAINER_ENGINE" == "podman" ]]
+}
+
+container_name() {
+    local name
+    name="sandbox-$(basename "$PWD")"
+    echo "${name//[^a-zA-Z0-9_-]/_}"
+}
+
+get_sandbox_port() {
+    local name="$1"
+    $CONTAINER_ENGINE port "$name" 2222 | cut -d: -f2
+}
+
+ensure_image() {
+    local image_exists=false
+
+    if is_podman; then
+        $CONTAINER_ENGINE image exists "$SANDBOX_IMAGE" && image_exists=true
+    else
+        # Docker doesn't have 'image exists', use inspect instead
+        $CONTAINER_ENGINE image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1 && image_exists=true
+    fi
+
+    if ! $image_exists; then
+        echo "Pulling $SANDBOX_IMAGE for the first time..."
+        $CONTAINER_ENGINE pull "$SANDBOX_IMAGE"
+    else
+        echo "Checking if image is up to date..."
+        $CONTAINER_ENGINE pull "$SANDBOX_IMAGE"
+    fi
+}
+
+cmd_start_or_enter() {
+    local name
+    name="$(container_name)"
+
+    if [[ -n "${SANDBOX_CONTAINER:-}" ]]; then
+        echo "Error: Already inside sandbox container" >&2
+        exit 1
+    fi
+
+    if $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
+        echo "Entering existing sandbox: $name"
+    else
+        if $CONTAINER_ENGINE ps -aq -f "name=^${name}$" | grep -q .; then
+            echo "Removing stopped sandbox: $name"
+            $CONTAINER_ENGINE rm "$name" >/dev/null
+        fi
+
+        ensure_image
+
+        echo "Starting sandbox: $name"
+
+        local ssh_keys=""
+        if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
+            ssh_keys=$(ssh-add -L | base64 -w0)
+            echo "Injecting SSH pub keys from agent"
+        fi
+
+        local run_args=(
+            -d
+            --name "$name"
+            --hostname "$name"
+            --rm
+        )
+
+        # Security related options
+        run_args+=(
+            --cap-drop=ALL
+            --cap-add=CHOWN
+            --cap-add=DAC_OVERRIDE
+            --cap-add=SETGID
+            --cap-add=SETUID
+            --cap-add=NET_BIND_SERVICE
+            --security-opt no-new-privileges=true
+        )
+        # Podman-specific: rootless user namespace mapping & custom seccomp profile
+        if is_podman; then
+            run_args+=(
+                --userns=keep-id
+                --security-opt seccomp=/usr/share/containers/seccomp.json
+            )
+        fi
+
+        run_args+=(
+            --memory=8g
+            --memory-swap=8g
+            --cpus=6
+            --pids-limit=1024
+            --ulimit nofile=1024:8192
+            -P
+            -v "$PWD:/home/dev/workspace:Z"
+        )
+
+        run_args+=(
+            -e "SANDBOX_CONTAINER=1"
+            -e "SANDBOX_SSH_KEYS=$ssh_keys"
+            "$SANDBOX_IMAGE"
+        )
+
+        $CONTAINER_ENGINE run "${run_args[@]}" >/dev/null
+
+        local port
+        port="$(get_sandbox_port "$name")"
+        if [[ -n "$port" ]]; then
+            echo "SSH port: $port"
+        fi
+    fi
+
+    exec $CONTAINER_ENGINE exec -it -u dev -w /home/dev/workspace "$name" zsh
+}
+
+cmd_list() {
+    echo "Running sandboxes:"
+    $CONTAINER_ENGINE ps --filter "name=^sandbox-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+}
+
+cmd_stop() {
+    local stop_all=false
+
+    if [[ "${1:-}" == "-a" ]] || [[ "${1:-}" == "--all" ]]; then
+        stop_all=true
+    fi
+
+    if $stop_all; then
+        local containers
+        containers="$($CONTAINER_ENGINE ps -q --filter "name=^sandbox-")"
+        if [[ -n "$containers" ]]; then
+            echo "Stopping all sandboxes..."
+            echo "$containers" | xargs "$CONTAINER_ENGINE" stop >/dev/null
+            echo "Done"
+        else
+            echo "No running sandboxes"
+        fi
+    else
+        local name
+        name="$(container_name)"
+
+        if $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
+            echo "Stopping sandbox: $name"
+            $CONTAINER_ENGINE stop "$name" >/dev/null
+            echo "Done"
+        else
+            echo "No sandbox running for current directory"
+        fi
+    fi
+}
+
+cmd_info() {
+    local name
+    name="$(container_name)"
+
+    if ! $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
+        echo "No sandbox running for current directory" >&2
+        exit 1
+    fi
+
+    local port
+    port="$(get_sandbox_port "$name")"
+
+    echo "Sandbox: $name"
+    echo "Workspace: $PWD"
+    echo ""
+    echo "SSH connection:"
+    echo "  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $port dev@localhost"
+    echo ""
+    echo "JetBrains Gateway:"
+    echo "  Host: localhost"
+    echo "  Port: $port"
+    echo "  User: dev"
+}
+
+cmd_idea() {
+    local name
+    name="$(container_name)"
+
+    if ! $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
+        echo "No sandbox running for current directory" >&2
+        exit 1
+    fi
+
+    local port
+    port="$(get_sandbox_port "$name")"
+
+    if [[ -z "$port" ]]; then
+        echo "Error: Could not determine SSH port" >&2
+        exit 1
+    fi
+
+    local url="jetbrains://gateway/ssh/environment?h=localhost&u=dev&p=${port}&launchIde=true&ideHint=IU&projectHint=/workspace"
+
+    echo "Opening IntelliJ IDEA on localhost:$port..."
+
+    if command -v open >/dev/null 2>&1; then
+        open "$url" >/dev/null 2>&1
+    else
+        echo "Error: open command found" >&2
+        echo "Please open this URL manually:" >&2
+        echo "$url" >&2
+        exit 1
+    fi
+}
+
+cmd_help() {
+    cat <<EOF
+sandbox - Isolated development environment wrapper
+
+Usage:
+    sandbox           Start/enter sandbox for current directory
+    sandbox idea      Open IntelliJ IDEA connected to sandbox
+    sandbox list      List running sandboxes
+    sandbox stop      Stop sandbox for current directory
+    sandbox stop -a   Stop all sandboxes
+    sandbox info      Show SSH connection details
+    sandbox help      Show this help
+
+Environment Variables:
+    SANDBOX_IMAGE      Container image (default: sandbox:latest)
+
+Examples:
+    cd ~/projects/my-app && sandbox      # Start and enter sandbox
+    sandbox idea                         # Open IntelliJ IDEA for this project
+    sandbox info                         # Show SSH connection details
+    sandbox stop                         # Stop current sandbox
+    sandbox list                         # List all running sandboxes
+EOF
+}
+
+main() {
+    local cmd="${1:-}"
+
+    case "$cmd" in
+        ""|start|enter)  cmd_start_or_enter ;;
+        idea)            cmd_idea ;;
+        ls|list)         cmd_list ;;
+        stop)            shift; cmd_stop "$@" ;;
+        info)            cmd_info ;;
+        help|--help|-h)  cmd_help ;;
+        *)
+            echo "Error: Unknown command: $cmd" >&2
+            echo "" >&2
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
