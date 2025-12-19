@@ -21,7 +21,8 @@ task :install => [
   :vim,
   :k9s,
   :fonts,
-  :macos
+  :macos,
+  :vscode
 ]
 task :shell => [
   :sh,
@@ -234,4 +235,9 @@ end
 task :macos do
   next if !is_macos
   Cfg.file("0644", src: "macos/karabiner.json", dst: "#{HOME}/.config/karabiner/karabiner.json")
+end
+
+task :vscode do
+  next if ! Dir.exist?("#{HOME}/.config/Code/User/")
+  Cfg.file("0644", src: "vscode/settings.json", dst: "#{HOME}/.config/Code/User/settings.json")
 end
