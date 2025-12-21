@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SANDBOX_IMAGE="ghcr.io/narkatee/sandbox-container:latest"
+SSH_CONFIG_DIR="$HOME/.ssh/config.d"
 
 detect_container_engine() {
     if command -v podman >/dev/null 2>&1; then
@@ -67,6 +68,28 @@ ensure_sandbox() {
     fi
 }
 
+setup_ssh_alias() {
+    local name="$1" port="$2"
+    if [[ -d "$SSH_CONFIG_DIR" ]]; then
+        local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+        # create file with restrictive permissions
+        (umask 0077; touch "$config_file")
+        cat > "$config_file" <<EOF
+        Host $name
+            HostName localhost
+            Port $port
+            User dev
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+EOF
+    fi
+}
+
+is_ssh_alias_setup() {
+    local name="$1"
+    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+    [[ -f "$config_file" ]]
+}
 
 cmd_start_or_enter() {
     local name
@@ -142,7 +165,12 @@ cmd_start_or_enter() {
         local port
         port="$(get_sandbox_port "$name")"
         if [[ -n "$port" ]]; then
-            echo "SSH port: $port"
+            setup_ssh_alias "$name" "$port"
+            if is_ssh_alias_setup "$name"; then
+                echo "SSH alias setup: sandbox-$name"
+            else
+                echo "SSH port: $port"
+            fi
         fi
     fi
 
@@ -196,14 +224,20 @@ cmd_info() {
         exit 1
     fi
 
-    echo ""
-    echo "SSH connection:"
-    echo "  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $port dev@localhost"
-    echo ""
-    echo "JetBrains Gateway:"
-    echo "  Host: localhost"
-    echo "  Port: $port"
-    echo "  User: dev"
+    if is_ssh_alias_setup "$name"; then
+        echo ""
+        echo "You can connect using the SSH alias:"
+        echo "  ssh $name"
+    else
+        echo ""
+        echo "SSH connection:"
+        echo "  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $port dev@localhost"
+        echo ""
+        echo "JetBrains Gateway:"
+        echo "  Host: localhost"
+        echo "  Port: $port"
+        echo "  User: dev"
+    fi
 }
 
 open_url() {
@@ -232,9 +266,13 @@ cmd_idea() {
     fi
 
     # https://www.jetbrains.com/help/toolbox-app/gettings-started-with-ssh.html
-    local url="jetbrains://gateway/ssh/environment?h=localhost&u=dev&p=${port}&launchIde=true&ideHint=IU&projectHint=/home/dev/workspace"
+    if is_ssh_alias_setup "$name"; then
+        local url="jetbrains://gateway/ssh/environment?h=$name&launchIde=true&ideHint=IU&projectHint=/home/dev/workspace"
+    else
+        local url="jetbrains://gateway/ssh/environment?h=localhost&u=dev&p=${port}&launchIde=true&ideHint=IU&projectHint=/home/dev/workspace"
+    fi
 
-    echo "Opening IntelliJ IDEA on localhost:$port..."
+    echo "Opening IntelliJ IDEA on $name..."
 
     open_url "$url"
 }
@@ -252,11 +290,15 @@ cmd_code() {
     fi
 
     # https://code.visualstudio.com/docs/remote/troubleshooting#_connect-to-a-remote-host-from-the-terminal
-    local remote="ssh-remote+dev@localhost:${port}/home/dev/workspace"
+    if is_ssh_alias_setup "$name"; then
+        local remote="ssh-remote+$name"
+    else
+        local remote="ssh-remote+dev@localhost:${port}/home/dev/workspace"
+    fi
     # https://code.visualstudio.com/docs/configure/command-line#_opening-vs-code-with-urls
     local url="vscode://vscode-remote/$remote"
 
-    echo "Opening Visual Studio Code on localhost:$port..."
+    echo "Opening Visual Studio Code on $name..."
 
     if command -v code >/dev/null 2>&1; then
         code --folder-uri "vscode-remote://$remote"
