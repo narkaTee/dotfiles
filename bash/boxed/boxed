@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Run commands in a lighweight sandbox using bubblewrap (bwrap)
+#
+# This does break terminal resizing due to:
+# - https://github.com/containers/bubblewrap/issues/573
+# - https://github.com/containers/bubblewrap/pull/586
+# But that is acceptable for most use cases.
+
+set -euo pipefail
+
+boxed_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/features.bash
+source "$boxed_dir/lib/features.bash"
+
+usage() {
+    cat <<EOF
+Usage: boxed [OPTIONS] <profile> <command> [args...]
+
+Options:
+  -s, --shell         Launch bash instead of command
+  -d, --debug         Print bwrap command and exit
+  -H, --home          Bind real home directory (read-write)
+  -n, --net           Enable network access
+  -h, --help          Show this help
+
+Profiles:
+$(find "$boxed_dir/profiles.d" -type f -printf "  %f\n" 2>/dev/null | sort)
+EOF
+    exit 1
+}
+
+run_shell=false
+debug_mode=false
+bind_home=false
+enable_net=false
+non_option_args=()
+stop_parsing=false
+
+while [ $# -gt 0 ]; do
+    if [ "$stop_parsing" = true ]; then
+        non_option_args+=("$1")
+        shift
+        continue
+    fi
+
+    case "$1" in
+        --)
+            stop_parsing=true
+            shift
+            ;;
+        -s|--shell)
+            run_shell=true
+            shift
+            ;;
+        -d|--debug)
+            debug_mode=true
+            shift
+            ;;
+        -H|--home)
+            bind_home=true
+            shift
+            ;;
+        -n|--net)
+            enable_net=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            echo "missing a -- to seperate boxed and command args?"
+            echo ""
+            usage
+            ;;
+        *)
+            non_option_args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+set -- "${non_option_args[@]}"
+
+profile_name="${1:-}"
+if [ -z "$profile_name" ]; then
+    usage
+fi
+shift
+
+profile_file="$boxed_dir/profiles.d/$profile_name"
+if [ ! -f "$profile_file" ]; then
+    echo "Error: profile '$profile_name' not found" >&2
+    exit 1
+fi
+
+command_name="${1:-}"
+if [ -z "$command_name" ]; then
+    echo "Error: no command specified" >&2
+    usage
+fi
+
+if ! command -v "$command_name" &>/dev/null; then
+    echo "Error: command '$command_name' not found" >&2
+    exit 1
+fi
+
+declare -a args+=(
+    --die-with-parent
+    --unshare-all
+    --cap-drop ALL
+    --clearenv
+    --new-session
+)
+
+feature_ro_system
+feature_proc
+feature_dev_basic
+feature_tmpfs_tmp
+feature_tmpfs_home
+feature_essential_env
+
+source "$profile_file"
+
+if [ "$bind_home" = true ]; then
+    feature_bind_home
+fi
+
+if [ "$enable_net" = true ]; then
+    args+=(--share-net)
+fi
+
+if [ "$debug_mode" = true ]; then
+    echo "=== Profile: $profile_name ===" >&2
+    echo "=== Command: $* ===" >&2
+    echo "=== Flags ===" >&2
+    printf '%s\n' "${args[@]}" >&2
+    exit 0
+fi
+
+echo "running 📦ed [$profile_name]"
+
+if [ "$run_shell" = true ]; then
+    exec bwrap "${args[@]}" -- bash
+else
+    exec bwrap "${args[@]}" -- "$@"
+fi

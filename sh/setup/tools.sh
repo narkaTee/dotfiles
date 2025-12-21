@@ -61,10 +61,20 @@ n_update() {
     fi
 }
 
-
 # init onepassword cli plugins if present
 if [ -f "$HOME/.config/op/plugins.sh" ]; then
     . "$HOME/.config/op/plugins.sh"
+fi
+
+if [ -d "$HOME/.config/boxed" ]; then
+    export PATH="$PATH:$HOME/.config/boxed"
+    alias npm="boxed npm npm"
+    alias npx="boxed npm npx"
+    alias pnpm="boxed npm pnpm"
+    alias pnpx="boxed npm pnpx"
+    alias yarn="boxed npm yarn"
+    alias yarnpkg="boxed npm yarnpkg"
+    alias aj="boxed ai-jail"
 fi
 
 # Setup EDITOR and VISUAL
