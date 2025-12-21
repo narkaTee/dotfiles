@@ -37,7 +37,7 @@ task :check => [
 ]
 
 task :shellcheck do
-  dirs = ["git/scripts", "sh", "bash/bashrc.d", "bash/bin"]
+  dirs = ["git/scripts", "sh", "bash/bashrc.d", "bash/bin", "bash/boxed"]
   ignore = ["bash/bashrc.d/z.sh"]
   files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }.select { |f| File.file?(f) && !ignore.include?(f) }
   failed = false
@@ -92,13 +92,22 @@ task :bash => [:test_bash, :sh] do
   Cfg.file("0644", dst: "#{HOME}/.bash_profile", src: "bash/bash_profile")
   sh 'install -m 700 -d "$HOME/bin"'
   sh 'cp bash/bin/* "$HOME/bin/"'
+  if !is_macos
+    # no bwrap in macos
+    Cfg.directory "#{HOME}/.config/boxed/" do
+      purge
+      source "bash/boxed/"
+    end
+  end
 end
 
 task :test_bash do
-  files = Dir.glob("bash/bash*").select { |f| File.file?(f) } + Dir.glob("bash/bashrc.d/*")
+  files = Dir.glob("bash/bash*").select { |f| File.file?(f) } +
+    Dir.glob("bash/bashrc.d/*") +
+    Dir.glob("bash/boxed/**/*").select { |f| File.file?(f) }
   files.each do |file|
-     sh "bash -n '#{file}'"
-     exit unless $?.exitstatus == 0
+    sh "bash -n '#{file}'"
+    exit unless $?.exitstatus == 0
   end
 end
 
