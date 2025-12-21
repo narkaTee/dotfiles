@@ -1,0 +1,13 @@
+# shellcheck shell=bash
+
+feature_bind_pwd
+# Our setup of n uses `n` and `repo` which should be protected
+bind_command_tree npm 1 n repo
+
+bind_cache ~/.npm
+bind_ro_if_exists ~/.npmrc
+
+add_env 'NODE_*'
+add_env 'NPM_*'
+
+feature_network
