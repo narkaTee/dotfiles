@@ -32,29 +32,6 @@ if [ -d "$HOME/.cargo/bin" ]; then
     export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
-# Add NVM
-if [ -d "$HOME/.nvm" ]; then
-    export NVM_DIR="$HOME/.nvm"
-    # use ifs to prevent non zero exit state if nvm is not installed
-    if [ -s "$NVM_DIR/nvm.sh" ]; then
-        # To speed up the slow starup time
-        # https://github.com/nvm-sh/nvm/issues/539#issuecomment-245791291
-        # shellcheck disable=SC2240
-        \. "$NVM_DIR/nvm.sh" --no-use  # This loads nvm
-        # shellcheck disable=SC2142
-        alias node='unalias node ; unalias npm ; nvm use default ; node $@'
-        # shellcheck disable=SC2142
-        alias npm='unalias node ; unalias npm ; nvm use default ; npm $@'
-        alias nvmsrc='. "$NVM_DIR/nvm.sh"'
-    fi
-fi
-
-if [ -d "$HOME/.asdf/" ]; then
-    # we want asdf to also resolve "dynamic" versions like 20
-    export ASDF_NODEJS_LEGACY_FILE_DYNAMIC_STRATEGY="latest_available"
-    . "$HOME/.asdf/asdf.sh"
-fi
-
 if [ -d "$HOME/.n-vm/" ]; then
     export N_PREFIX="$HOME/.n-vm/"
     export PATH="$PATH:$HOME/.n-vm/repo/bin:$HOME/.n-vm/bin"
@@ -84,15 +61,6 @@ n_update() {
     fi
 }
 
-# set PATH to include the global composer bin if it exists
-if [ -d "$HOME/.composer/vendor/bin" ]; then
-    PATH="$PATH:$HOME/.composer/vendor/bin"
-fi
-
-# set path to include pip bin if it exists
-if [ -d "$HOME/.local/bin" ]; then
-    PATH="$PATH:$HOME/.local/bin"
-fi
 
 # init onepassword cli plugins if present
 if [ -f "$HOME/.config/op/plugins.sh" ]; then
