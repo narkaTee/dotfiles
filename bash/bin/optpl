@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cleanup() {
+    echo "Cleaning up $1"
+    rm -f "$1"
+}
+
+template_alias() {
+    case "$1" in
+        claude)   echo "$HOME/.claude/settings.json.optpl" ;;
+        opencode) echo "$HOME/.config/opencode/opencode.jsonc.optpl" ;;
+    esac
+}
+
+optpl() {
+    if [ "$1" == "--show-alias" ]; then
+        echo -n "$(template_alias "$2")"
+        exit 0
+    fi
+
+    local template="$1" target run_op=true
+    if [ -z "$template" ]; then
+        echo "No template given" >&2
+        echo ""
+        usage
+    fi
+    shift
+
+    if [ $# -lt 1 ]; then
+        echo "No command given" >&2
+        exit 1
+    fi
+
+    local alias
+    alias="$(template_alias "$template")"
+    if [ -n "$alias" ]; then
+        template="$alias"
+    fi
+
+    if [ ! -f "$template" ]; then
+        echo "optpl Warning: template $template does not exist, not running op" >&2
+        run_op=false
+    fi
+
+    local target="${template/.optpl/}"
+    if [ "$target" = "$template" ]; then
+        echo "optpl: template and target are identical ($template) is the template a .optpl file?" >&2
+        exit 1
+    fi
+
+    # It would be awesome to let op inject display the user confirmation and work with that
+    # but op does not change the exit code depending on that user chooses it always returns 0
+    # as exit code event when it aborts...
+    # For know just print a warning and skip the injection.
+    if [ -e "$target" ]; then
+        echo "optpl Warning: The target $target already exists, not running op" >&2
+        run_op=false
+    fi
+    if ! hash op 2>/dev/null; then
+        echo "optpl Warning: op cli not found, not running op" >&2
+        run_op=false
+    fi
+
+    if [ "$run_op" = true ]; then
+        # We want the target to be expanded right now
+        # shellcheck disable=SC2064
+        trap "cleanup '$target'" exit
+        op inject -i "$template" -o "$target" > /dev/null
+    fi
+
+    "$@"
+}
+
+usage() {
+    cat <<EOF
+Usage: optpl <template> <command> [args...]
+
+Templates:
+  claude       Use the template for Anthropic Claude CLI
+  opencode     Use the template for Opencode CLI
+  <file>       Any .optpl file
+EOF
+    exit 1
+}
+
+optpl "$@"

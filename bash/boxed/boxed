@@ -106,6 +106,7 @@ if ! command -v "$command_name" &>/dev/null; then
     exit 1
 fi
 
+declare -a prepend_cmd=()
 declare -a args+=(
     --die-with-parent
     --unshare-all
@@ -142,7 +143,7 @@ fi
 echo "running 📦ed [$profile_name]"
 
 if [ "$run_shell" = true ]; then
-    exec bwrap "${args[@]}" -- bash
+    exec "${prepend_cmd[@]}" bwrap "${args[@]}" -- bash
 else
-    exec bwrap "${args[@]}" -- "$@"
+    exec "${prepend_cmd[@]}" bwrap "${args[@]}" -- "$@"
 fi
