@@ -34,6 +34,7 @@ get_tool_config_dir() {
 # shellcheck disable=SC2154
 tool_name="$command_name"
 tool_config_dir="$(get_tool_config_dir "$tool_name")"
+feature_run_optpl_with_template "$tool_name"
 
 if [ -n "$tool_config_dir" ]; then
     # Use an overlay fs for the config dir.
