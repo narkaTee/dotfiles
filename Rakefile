@@ -249,4 +249,11 @@ end
 task :vscode do
   next if ! Dir.exist?("#{HOME}/.config/Code/User/")
   Cfg.file("0644", src: "vscode/settings.json", dst: "#{HOME}/.config/Code/User/settings.json")
+  if has_command("code")
+    [
+      'ms-azuretools.vscode-containers'
+    ].each do |ext|
+      sh "code --install-extension #{ext}"
+    end
+  end
 end

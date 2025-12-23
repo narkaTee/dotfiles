@@ -7,5 +7,5 @@ def is_linux
 end
 
 def has_command(cmd)
-  system("which fc-cache", out: "/dev/null")
+  system("which #{cmd}", out: "/dev/null")
 end
