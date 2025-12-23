@@ -125,6 +125,12 @@ feature_bind_vim_cfg() {
     bind_ro_if_exists ~/.vim/
 }
 
+feature_run_optpl_with_template() {
+    if hash optpl 2>/dev/null && [ -n "$(optpl --show-alias "$1")" ]; then
+        prepend_cmd+=( "optpl" "$1" )
+    fi
+}
+
 bind_ro_if_exists() {
     _bind_if_exists --ro-bind "$1"
 }
