@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+. ~/.config/lib/bash/git_fzf.sh
+
+__git_fzf_add "$@"
