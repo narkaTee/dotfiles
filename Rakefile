@@ -37,7 +37,7 @@ task :check => [
 ]
 
 task :shellcheck do
-  dirs = ["git/scripts", "sh", "bash/bashrc.d", "bash/bin", "bash/boxed"]
+  dirs = ["git/scripts", "sh", "bash"]
   ignore = ["bash/bashrc.d/z.sh"]
   files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }.select { |f| File.file?(f) && !ignore.include?(f) }
   failed = false
@@ -87,6 +87,10 @@ task :bash => [:test_bash, :sh] do
   Cfg.directory "#{HOME}/.config/bashrc.d/" do
     purge
     source "bash/bashrc.d/"
+  end
+  Cfg.directory "#{HOME}/.config/lib/bash" do
+    purge
+    source "bash/lib/"
   end
   Cfg.file("0644", dst: "#{HOME}/.bashrc", src: "bash/bashrc")
   Cfg.file("0644", dst: "#{HOME}/.bash_profile", src: "bash/bash_profile")

@@ -1,4 +1,5 @@
-# vim: ft=sh
+# shellcheck shell=bash
+# vim: ft=bash
 #WSL Snippet for bash_profile.local
 # Inspired by: https://stackoverflow.com/questions/44971719/drvfs-location-of-userprofile
 # Prepare for hackyness :) not nice but works without https://github.com/vuori/weasel-pageant
@@ -7,7 +8,7 @@ get_wsl_profile() {
     win_profile_drive="${win_profile%%:*}:"
     win_profile_path="${win_profile#*:}"
     win_profile_mount="$(findmnt --noheadings --first-only --output TARGET "$win_profile_drive")"
-    printf "${win_profile_mount}${win_profile_path//\\//}"
+    printf "%s%s" "${win_profile_mount}" "${win_profile_path//\\//}"
 }
 
 # exit code 1 can mean no identities, it's not documented what else can cause this.
@@ -15,9 +16,10 @@ get_wsl_profile() {
 ssh-add -l &>/dev/null
 if [ $? -eq 1 ] &&  hash cmd.exe 2>/dev/null; then
     profile_path="$(get_wsl_profile)"
-    if [ ! -z "$profile_path" ]; then
+    if [ -n "$profile_path" ]; then
         keys="$profile_path/Documents/sshkeys/*.openssh"
         # we want globbing to happen
+        # shellcheck disable=SC2086
         ssh-add $keys
     fi
 fi

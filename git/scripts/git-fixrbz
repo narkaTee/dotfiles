@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+selected="$(git log --oneline --decorate --color=always | fzf --ansi --nth 2.. --accept-nth 1 --tiebreak=index --reverse)"
+git fixrb "$selected"

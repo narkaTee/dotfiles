@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Usage: git sz
+set -suo pipefail
+
+. ~/.config/lib/bash/git_fzf.sh
+
+__git_fzf_branch_switch "$@"
