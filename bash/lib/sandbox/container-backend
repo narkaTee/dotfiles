@@ -1,0 +1,142 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+SANDBOX_IMAGE="ghcr.io/narkatee/sandbox-container:latest"
+
+detect_container_engine() {
+    if command -v podman >/dev/null 2>&1; then
+        echo "podman"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "docker"
+    else
+        echo "Error: Neither podman nor docker found" >&2
+        exit 1
+    fi
+}
+
+CONTAINER_ENGINE="${CONTAINER_ENGINE:-$(detect_container_engine)}"
+
+is_podman() {
+    [[ "$CONTAINER_ENGINE" == "podman" ]]
+}
+
+get_container_ssh_port() {
+    local name="$1"
+    $CONTAINER_ENGINE port "$name" 2222 | cut -d: -f2
+}
+
+ensure_container_image() {
+    local image_exists=false
+
+    if is_podman; then
+        $CONTAINER_ENGINE image exists "$SANDBOX_IMAGE" && image_exists=true
+    else
+        $CONTAINER_ENGINE image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1 && image_exists=true
+    fi
+
+    if ! $image_exists; then
+        echo "Pulling $SANDBOX_IMAGE for the first time..."
+        $CONTAINER_ENGINE pull "$SANDBOX_IMAGE"
+    else
+        echo "Updating image..."
+        $CONTAINER_ENGINE pull -q "$SANDBOX_IMAGE" >/dev/null
+    fi
+}
+
+is_container_running() {
+    local name="$1"
+    if $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+start_container_sandbox() {
+    local name="$1"
+
+    if $CONTAINER_ENGINE ps -aq -f "name=^${name}$" | grep -q .; then
+        echo "Removing stopped sandbox: $name"
+        $CONTAINER_ENGINE rm "$name" >/dev/null
+    fi
+
+    ensure_container_image
+
+    echo "Starting sandbox: $name"
+
+    local ssh_keys=""
+    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
+        ssh_keys=$(ssh-add -L | base64 -w0)
+        echo "Injecting SSH pub keys from agent"
+    fi
+
+    local run_args=(
+        -d
+        --name "$name"
+        --hostname "$name"
+        --rm
+    )
+
+    run_args+=(
+        --cap-drop=ALL
+        --cap-add=CHOWN
+        --cap-add=DAC_OVERRIDE
+        --cap-add=SETGID
+        --cap-add=SETUID
+        --cap-add=NET_BIND_SERVICE
+        --security-opt no-new-privileges=true
+    )
+    if is_podman; then
+        run_args+=(
+            --userns=keep-id
+            --security-opt seccomp=/usr/share/containers/seccomp.json
+        )
+    fi
+
+    run_args+=(
+        --memory=8g
+        --memory-swap=8g
+        --cpus=6
+        --pids-limit=1024
+        --ulimit nofile=1024:8192
+        -P
+        -v "$PWD:/home/dev/workspace:Z"
+    )
+
+    run_args+=(
+        -e "SANDBOX_CONTAINER=1"
+        -e "SANDBOX_SSH_KEYS=$ssh_keys"
+        "$SANDBOX_IMAGE"
+    )
+
+    $CONTAINER_ENGINE run "${run_args[@]}" >/dev/null
+
+    local port
+    port="$(get_container_ssh_port "$name")"
+    if [[ -n "$port" ]]; then
+        setup_ssh_alias "$name" "$port"
+        if is_ssh_alias_setup "$name"; then
+            echo "SSH alias setup: $name"
+        else
+            echo "SSH port: $port"
+        fi
+    fi
+}
+
+stop_container_sandbox() {
+    local name="$1"
+    "$CONTAINER_ENGINE" stop "$name" >/dev/null
+}
+
+list_container_sandboxes() {
+    $CONTAINER_ENGINE ps --filter "name=^sandbox-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+}
+
+stop_all_container_sandboxes() {
+    local containers
+    containers="$($CONTAINER_ENGINE ps -q --filter "name=^sandbox-")"
+    if [[ -n "$containers" ]]; then
+        echo "Stopping container sandboxes..."
+        echo "$containers" | xargs "$CONTAINER_ENGINE" stop >/dev/null
+    fi
+}
