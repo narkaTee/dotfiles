@@ -1,10 +1,11 @@
 # shellcheck shell=bash
+# vim: ft=bash
 # Want to let the agent 'yolo' all day?
 # put it in ai-jail and forget about it! 👯
 #
 # The "threat model" this is designed for is mainly "the agent nuked
 # something I cannot easily restore".
-# For better isolation use a container.
+# For better isolation use a container/vm
 #
 # This does not properly protect against malicous agents/models, mcp, prompts etc
 # when running "yolo" mode. An unsupervisied malicious agent could try to escape
@@ -41,7 +42,9 @@ if [ -n "$tool_config_dir" ]; then
     #  - original config as lower (ro) -> "overlay-src"
     #  - directory for changes: upper (rw) -> first arg to overlay
     #  - dir for the kernel/fuse: work dir
-    overlay_base="$HOME/$tool_config_dir-jail-overlay"
+    # The overlay is scoped per project. If multiple instances are opened
+    # with the same overlay folders instances may fail to write to the folders.
+    overlay_base="$HOME/${tool_config_dir}-jail-overlay-$(basename "$PWD")"
     overlay_upper="$overlay_base/upper-rw"
     overlay_work="$overlay_base/work"
 
