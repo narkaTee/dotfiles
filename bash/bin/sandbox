@@ -1,68 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SANDBOX_IMAGE="ghcr.io/narkatee/sandbox-container:latest"
 SSH_CONFIG_DIR="$HOME/.ssh/config.d"
+BACKEND="container"
 
-detect_container_engine() {
-    if command -v podman >/dev/null 2>&1; then
-        echo "podman"
-    elif command -v docker >/dev/null 2>&1; then
-        echo "docker"
-    else
-        echo "Error: Neither podman nor docker found" >&2
-        exit 1
-    fi
+validate_and_init_backend() {
+    case "$BACKEND" in
+        container)
+            # the checks for the container engine are implicitly done when source-ing the backend
+            ;;
+        kvm)
+            if [[ ! -e /dev/kvm ]]; then
+                echo "Error: KVM not available (no /dev/kvm)" >&2
+                exit 1
+            fi
+            if [[ ! -w /dev/kvm ]]; then
+                echo "Error: KVM not writeable for this user" >&2
+                exit 1
+            fi
+            if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
+                echo "Error: qemu-system-x86_64 not found" >&2
+                exit 1
+            fi
+            ;;
+    esac
+
+    source "$HOME/.config/lib/bash/sandbox/container-backend"
+    source "$HOME/.config/lib/bash/sandbox/kvm-backend"
 }
 
-CONTAINER_ENGINE="${CONTAINER_ENGINE:-$(detect_container_engine)}"
-
-is_podman() {
-    [[ "$CONTAINER_ENGINE" == "podman" ]]
-}
-
-container_name() {
+sandbox_name() {
     local name
     name="sandbox-$(basename "$PWD")"
     echo "${name//[^a-zA-Z0-9_-]/_}"
 }
 
-get_sandbox_port() {
-    local name="$1"
-    $CONTAINER_ENGINE port "$name" 2222 | cut -d: -f2
-}
-
-ensure_image() {
-    local image_exists=false
-
-    if is_podman; then
-        $CONTAINER_ENGINE image exists "$SANDBOX_IMAGE" && image_exists=true
-    else
-        # Docker doesn't have 'image exists', use inspect instead
-        $CONTAINER_ENGINE image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1 && image_exists=true
-    fi
-
-    if ! $image_exists; then
-        echo "Pulling $SANDBOX_IMAGE for the first time..."
-        $CONTAINER_ENGINE pull "$SANDBOX_IMAGE"
-    else
-        echo "Updating image..."
-        $CONTAINER_ENGINE pull -q "$SANDBOX_IMAGE" >/dev/null
-    fi
-}
-
-is_sandbox_running() {
-    local name="$1"
-    if $CONTAINER_ENGINE ps -q -f "name=^${name}$" | grep -q .; then
-        return 0
-    else
-        return 1
-    fi
-}
-
 ensure_sandbox() {
     local name="$1"
-    if ! is_sandbox_running "$name"; then
+    if ! backend_is_running "$name"; then
         echo "No sandbox running for current directory" >&2
         exit 1
     fi
@@ -91,95 +66,132 @@ is_ssh_alias_setup() {
     [[ -f "$config_file" ]]
 }
 
+backend_is_running() {
+    local name="$1"
+    case "$BACKEND" in
+        container) is_container_running "$name" ;;
+        kvm) is_kvm_running "$name" ;;
+    esac
+}
+
+backend_get_ssh_port() {
+    local name="$1"
+    case "$BACKEND" in
+        container) get_container_ssh_port "$name" ;;
+        kvm) get_kvm_ssh_port "$name" ;;
+    esac
+}
+
+backend_ensure_image() {
+    case "$BACKEND" in
+        container) ensure_container_image ;;
+        kvm) ensure_kvm_image ;;
+    esac
+}
+
+backend_start() {
+    local name="$1"
+    case "$BACKEND" in
+        container) start_container_sandbox "$name" ;;
+        kvm) start_kvm_sandbox "$name" ;;
+    esac
+}
+
+backend_stop() {
+    local name="$1"
+    case "$BACKEND" in
+        container) stop_container_sandbox "$name" ;;
+        kvm) stop_kvm_sandbox "$name" ;;
+    esac
+}
+
+backend_enter() {
+    local name="$1"
+    case "$BACKEND" in
+        container)
+            exec $CONTAINER_ENGINE exec -it -e "TERM=${TERM:-xterm-256color}" -u dev -w /home/dev/workspace "$name" zsh
+            ;;
+        kvm)
+            local port
+            port="$(get_kvm_ssh_port "$name")"
+            if [[ -z "$port" ]]; then
+                echo "Error: Could not determine SSH port" >&2
+                exit 1
+            fi
+            exec ssh -o UserKnownHostsFile=/dev/null \
+                -o StrictHostKeyChecking=no \
+                -p "$port" dev@localhost
+            ;;
+    esac
+}
+
+detect_running_backend() {
+    local sandbox_name
+    sandbox_name="$(sandbox_name)"
+
+    local container_running=false
+    local kvm_running=false
+
+    if is_container_running "$sandbox_name"; then
+        container_running=true
+    fi
+
+    if is_kvm_running "$sandbox_name"; then
+        kvm_running=true
+    fi
+
+    if $container_running && $kvm_running; then
+        echo "ERROR: Both backends running" >&2
+        return 2
+    elif $container_running; then
+        echo "container"
+        return 0
+    elif $kvm_running; then
+        echo "kvm"
+        return 0
+    else
+        return 1
+    fi
+}
+
+validate_no_backend_conflict() {
+    local detected
+    if detected=$(detect_running_backend); then
+        if [[ "$detected" != "$BACKEND" ]]; then
+            echo "Error: Already a running $detected sandbox" >&2
+            exit 1
+        fi
+    fi
+}
+
 cmd_start_or_enter() {
     local name
-    name="$(container_name)"
+    name="$(sandbox_name)"
 
     if [[ -n "${SANDBOX_CONTAINER:-}" ]]; then
         echo "Error: Already inside sandbox container" >&2
         exit 1
     fi
 
-    if is_sandbox_running "$name"; then
-        echo "Entering existing sandbox: $name"
+    if backend_is_running "$name"; then
+        echo "Entering existing sandbox: $name ($BACKEND backend)"
     else
-        if $CONTAINER_ENGINE ps -aq -f "name=^${name}$" | grep -q .; then
-            # should not happen but better safe then sorry
-            echo "Removing stopped sandbox: $name"
-            $CONTAINER_ENGINE rm "$name" >/dev/null
-        fi
-
-        ensure_image
-
-        echo "Starting sandbox: $name"
-
-        local ssh_keys=""
-        if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
-            ssh_keys=$(ssh-add -L | base64 -w0)
-            echo "Injecting SSH pub keys from agent"
-        fi
-
-        local run_args=(
-            -d
-            --name "$name"
-            --hostname "$name"
-            --rm
-        )
-
-        # Security related options
-        run_args+=(
-            --cap-drop=ALL
-            --cap-add=CHOWN
-            --cap-add=DAC_OVERRIDE
-            --cap-add=SETGID
-            --cap-add=SETUID
-            --cap-add=NET_BIND_SERVICE
-            --security-opt no-new-privileges=true
-        )
-        # Podman-specific: rootless user namespace mapping & custom seccomp profile
-        if is_podman; then
-            run_args+=(
-                --userns=keep-id
-                --security-opt seccomp=/usr/share/containers/seccomp.json
-            )
-        fi
-
-        run_args+=(
-            --memory=8g
-            --memory-swap=8g
-            --cpus=6
-            --pids-limit=1024
-            --ulimit nofile=1024:8192
-            -P
-            -v "$PWD:/home/dev/workspace:Z"
-        )
-
-        run_args+=(
-            -e "SANDBOX_CONTAINER=1"
-            -e "SANDBOX_SSH_KEYS=$ssh_keys"
-            "$SANDBOX_IMAGE"
-        )
-
-        $CONTAINER_ENGINE run "${run_args[@]}" >/dev/null
-
-        local port
-        port="$(get_sandbox_port "$name")"
-        if [[ -n "$port" ]]; then
-            setup_ssh_alias "$name" "$port"
-            if is_ssh_alias_setup "$name"; then
-                echo "SSH alias setup: sandbox-$name"
-            else
-                echo "SSH port: $port"
-            fi
-        fi
+        validate_no_backend_conflict
+        echo "Starting sandbox: $name ($BACKEND backend)"
+        backend_ensure_image
+        backend_start "$name"
     fi
 
-    exec $CONTAINER_ENGINE exec -it -e "TERM=${TERM:-xterm-256color}" -u dev -w /home/dev/workspace "$name" zsh
+    backend_enter "$name"
 }
 
 cmd_list() {
-    echo "Running sandboxes:"
-    $CONTAINER_ENGINE ps --filter "name=^sandbox-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    echo "Running sandboxes (container backend):"
+    list_container_sandboxes
+
+    echo ""
+    echo "Running sandboxes (kvm backend):"
+    list_kvm_sandboxes
 }
 
 cmd_stop() {
@@ -190,20 +202,19 @@ cmd_stop() {
     fi
 
     if $stop_all; then
-        local containers
-        containers="$($CONTAINER_ENGINE ps -q --filter "name=^sandbox-")"
-        echo "Stopping all sandboxes..."
-        if [[ -n "$containers" ]]; then
-            echo "$containers" | xargs "$CONTAINER_ENGINE" stop >/dev/null
-        fi
+        echo "Stopping all sandboxes (both backends)..."
+
+        stop_all_container_sandboxes
+        stop_all_kvm_sandboxes
+
         echo "Done"
     else
         local name
-        name="$(container_name)"
+        name="$(sandbox_name)"
 
         echo "Stopping sandbox: $name"
-        if is_sandbox_running "$name"; then
-            $CONTAINER_ENGINE stop "$name" >/dev/null
+        if backend_is_running "$name"; then
+            backend_stop "$name"
         fi
         echo "Done"
     fi
@@ -211,12 +222,13 @@ cmd_stop() {
 
 cmd_info() {
     local name
-    name="$(container_name)"
+    name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(get_sandbox_port "$name")"
+    port="$(backend_get_ssh_port "$name")"
 
     echo "Sandbox: $name"
+    echo "Backend: $BACKEND"
     echo "Workspace: $PWD"
 
     if [[ -z "$port" ]]; then
@@ -238,13 +250,19 @@ cmd_info() {
         echo "  Port: $port"
         echo "  User: dev"
     fi
+
+    if [[ "$BACKEND" == "kvm" ]]; then
+        echo ""
+        echo "Connect to vm console (to exit: ctrl+] or ctrl+altgr + 9 on qwertz keyboard):"
+        echo "  socat STDIO,raw,echo=0,escape=0x1d UNIX-CONNECT:$(kvm_console_socket "$name")"
+    fi
 }
 
 open_url() {
     local url="$1"
 
     if command -v open >/dev/null 2>&1; then
-        open "$url" >/dev/null 2>&1
+        open "$url" >/dev/null
     else
         echo "Error: open command found" >&2
         echo "Please open this URL manually:" >&2
@@ -255,10 +273,10 @@ open_url() {
 
 cmd_idea() {
     local name
-    name="$(container_name)"
+    name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(get_sandbox_port "$name")"
+    port="$(backend_get_ssh_port "$name")"
 
     if [[ -z "$port" ]]; then
         echo "Error: Could not determine SSH port" >&2
@@ -279,10 +297,10 @@ cmd_idea() {
 
 cmd_code() {
     local name
-    name="$(container_name)"
+    name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(get_sandbox_port "$name")"
+    port="$(backend_get_ssh_port "$name")"
 
     if [[ -z "$port" ]]; then
         echo "Error: Could not determine SSH port" >&2
@@ -312,18 +330,71 @@ cmd_help() {
 sandbox - Containerized development sandbox
 
 Usage:
-    sandbox           Start/enter sandbox for current directory
-    sandbox idea      Open IntelliJ IDEA connected to sandbox
-    sandbox code      Open Visual Studio Code connected to sandbox
-    sandbox list      List running sandboxes
-    sandbox stop      Stop sandbox for current directory
-    sandbox stop -a   Stop all sandboxes
-    sandbox info      Show SSH connection details
-    sandbox help      Show this help
+    sandbox [--kvm|--container] <command>
+
+Flags:
+    --kvm         Use KVM backend
+    --container   Use container backend
+
+Backend Selection:
+    The backend is automatically detected based on running sandboxes.
+    If no sandbox is running, defaults to container backend.
+    Use --kvm or --container to explicitly select a backend.
+
+Commands:
+    (none)        Start/enter sandbox for current directory
+    idea          Open IntelliJ IDEA connected to sandbox
+    code          Open Visual Studio Code connected to sandbox
+    list          List running sandboxes
+    stop          Stop sandbox for current directory
+    stop -a       Stop all sandboxes (both backends)
+    info          Show SSH connection details
+    help          Show this help
+
+Examples:
+    sandbox                   Start/enter (auto-detects backend)
+    sandbox --kvm             Start KVM sandbox
+    sandbox code              Open VS Code (auto-detects backend)
+    sandbox info              Show info (auto-detects backend)
+    sandbox stop -a           Stop all sandboxes
+
+Current backend: $BACKEND
 EOF
 }
 
 main() {
+    local non_option_args=()
+    local backend_explicitly_set=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --kvm)
+                BACKEND="kvm"
+                backend_explicitly_set=true
+                shift
+                ;;
+            --container)
+                BACKEND="container"
+                backend_explicitly_set=true
+                shift
+                ;;
+            *)
+                non_option_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    set -- "${non_option_args[@]}"
+
+    validate_and_init_backend
+    if ! $backend_explicitly_set; then
+        local detected
+        if detected=$(detect_running_backend); then
+            BACKEND="$detected"
+        fi
+    fi
+    validate_and_init_backend
+
     local cmd="${1:-}"
 
     case "$cmd" in

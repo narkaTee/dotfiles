@@ -1,0 +1,368 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+KVM_IMAGE_NAME="ghcr.io/narkatee/sandbox-kvm-image"
+KVM_IMAGE_TAG="latest"
+SANDBOX_CACHE="$HOME/.cache/dotfiles/kvm-sandbox"
+BASE_DISK_ZST="debian-13-nocloud-amd64-custom.qcow2.zst"
+BASE_DISK="debian-13-nocloud-amd64-custom.qcow2"
+DISK_IMAGE_ZST="$SANDBOX_CACHE/$BASE_DISK_ZST"
+DISK_IMAGE="$SANDBOX_CACHE/$BASE_DISK"
+KERNEL_EXTRACT="$SANDBOX_CACHE/vmlinuz"
+INITRD_EXTRACT="$SANDBOX_CACHE/initrd"
+SANDBOX_RUN_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/sandbox"
+
+kvm_state_dir() {
+    local name="$1"
+    echo "$SANDBOX_RUN_DIR/$name"
+}
+
+kvm_console_socket() {
+    local name="$1"
+    echo "$(kvm_state_dir "$name")/console.sock"
+}
+
+ensure_state_dir() {
+    local name="$1"
+    local state_dir
+    state_dir="$(kvm_state_dir "$name")"
+    mkdir -p "$state_dir"
+    chmod 700 "$state_dir"
+}
+
+is_kvm_running() {
+    local name="$1"
+    local state_dir
+    state_dir="$(kvm_state_dir "$name")"
+    local pid_file="$state_dir/qemu.pid"
+
+    if [[ ! -f "$pid_file" ]]; then
+        return 1
+    fi
+
+    local pid
+    pid="$(cat "$pid_file")"
+
+    # Check if process exists and is qemu
+    if kill -0 "$pid" 2>/dev/null; then
+        if ps -p "$pid" -o comm= | grep -q "qemu"; then
+            return 0
+        fi
+    fi
+
+    # Stale PID file
+    rm -f "$pid_file"
+    return 1
+}
+
+get_kvm_ssh_port() {
+    local name="$1"
+    local state_dir
+    state_dir="$(kvm_state_dir "$name")"
+    local port_file="$state_dir/ssh.port"
+
+    if [[ -f "$port_file" ]]; then
+        cat "$port_file"
+    else
+        echo ""
+    fi
+}
+
+allocate_ssh_port() {
+    # Use Python to let kernel allocate ephemeral port
+    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
+}
+
+fetch_image() {
+    cd "$SANDBOX_CACHE"
+
+    if oras pull "$KVM_IMAGE_NAME:$KVM_IMAGE_TAG" 2>&1; then
+        echo "decompressing image..."
+        zstd -d "$BASE_DISK_ZST"
+    else
+        echo "Failed to fetch image." >&2
+        exit 1
+    fi
+}
+
+ensure_kernel() {
+    if [ -f "$KERNEL_EXTRACT" ] && [ -f "$INITRD_EXTRACT" ]; then
+        return 0
+    fi
+    echo "Extracting kernel and initrd from image..."
+    local img_kernel
+    local img_initrd
+    img_kernel=$(virt-ls -a "$DISK_IMAGE" /boot 2>/dev/null | grep -i "^vmlinuz" | head -1)
+    img_initrd=$(virt-ls -a "$DISK_IMAGE" /boot 2>/dev/null | grep -i "^initrd.img" | head -1)
+
+    if [[ -z "$img_kernel" ]] || [[ -z "$img_initrd" ]]; then
+        echo "Error: Could not find kernel/initrd in image" >&2
+        exit 1
+    fi
+
+    virt-cat -a "$DISK_IMAGE" "/boot/$img_kernel" > "$KERNEL_EXTRACT"
+    virt-cat -a "$DISK_IMAGE" "/boot/$img_initrd" > "$INITRD_EXTRACT"
+}
+
+ensure_kvm_image() {
+    mkdir -p "$SANDBOX_CACHE"
+
+    if ! command -v oras >/dev/null 2>&1; then
+        echo "Error: oras not installed (required for KVM image pull)" >&2
+        echo "Install: apt-get install oras" >&2
+        exit 1
+    fi
+    if ! command -v virt-cat >/dev/null 2>&1; then
+        echo "Error: virt-cat not installed (required for kernel extraction)" >&2
+        exit 1
+    fi
+    if ! command -v virt-ls >/dev/null 2>&1; then
+        echo "Error: virt-ls not installed (required for kernel extraction)" >&2
+        exit 1
+    fi
+
+    if [ -f "$DISK_IMAGE_ZST" ]; then
+        echo "Checking image..."
+        local sha256sum_local
+        local sha256sum_remote
+        sha256sum_local="$(sha256sum "$DISK_IMAGE_ZST" | awk '{print $1}')"
+        sha256sum_remote="$(oras manifest fetch "$KVM_IMAGE_NAME:$KVM_IMAGE_TAG" | jq -r .layers[0].digest | sed 's/sha256://')"
+
+        if [ "$sha256sum_local" != "$sha256sum_remote" ]; then
+            echo "image outdated, updating..."
+            rm -f "$KERNEL_EXTRACT" "$INITRD_EXTRACT" "$DISK_IMAGE"
+            fetch_image
+        fi
+    else
+        echo "no image, downloading..."
+        fetch_image
+    fi
+    ensure_kernel
+}
+
+start_kvm_sandbox() {
+    local name="$1"
+    local workspace="$PWD"
+
+    ensure_state_dir "$name"
+
+    local state_dir
+    state_dir="$(kvm_state_dir "$name")"
+
+    local overlay="$state_dir/overlay.qcow2"
+    local pid_file="$state_dir/qemu.pid"
+    local port_file="$state_dir/ssh.port"
+    local console_socket
+    console_socket="$(kvm_console_socket "$name")"
+    local workspace_file="$state_dir/workspace.path"
+
+    qemu-img create -f qcow2 -b "$(realpath "$DISK_IMAGE")" -F qcow2 "$overlay" >/dev/null
+    chmod 600 "$overlay"
+
+    local ssh_port
+    ssh_port="$(allocate_ssh_port)"
+    echo "$ssh_port" > "$port_file"
+    echo "$workspace" > "$workspace_file"
+
+    local ssh_keys=""
+    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
+        ssh_keys=$(ssh-add -L | base64 -w0)
+        echo "Injecting SSH pub keys from agent"
+    fi
+
+    local qemu_args=(
+        -enable-kvm
+        -machine "smm=off,vmport=off,pit=off"
+        -cpu host
+        -m 4096
+        -smp 2
+        -nographic
+        -monitor none
+        -display none
+        -nodefaults
+        -no-user-config
+        -kernel "$KERNEL_EXTRACT"
+        -initrd "$INITRD_EXTRACT"
+        -append "console=ttyS0 root=/dev/vda3 rw quiet"
+        -drive "file=$overlay,if=virtio,cache=unsafe"
+        -chardev "socket,id=serial0,path=$console_socket,server=on,wait=off"
+        -device "isa-serial,chardev=serial0"
+        -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
+        -device "virtio-net,netdev=net0"
+        -virtfs "local,path=$workspace,mount_tag=workspace,security_model=none,readonly=off"
+        # prevent qemu from starting to the background: elevateprivileges=deny,spawn=deny
+        -sandbox "on,obsolete=deny,resourcecontrol=deny"
+        -rtc "base=utc,clock=vm"
+        -daemonize
+        -pidfile "$pid_file"
+    )
+
+    # Add SSH keys as fw_cfg if available
+    if [[ -n "$ssh_keys" ]]; then
+        qemu_args+=(-fw_cfg "name=opt/com.sandbox/ssh_keys,string=$ssh_keys")
+    fi
+
+    echo "Starting QEMU..."
+
+    # Run QEMU and try to capture any errors. qemu is not very log-happy when running with -daemonize
+    # But we can at-least try...
+    set +e
+    local qemu_error
+    qemu_error=$(qemu-system-x86_64 "${qemu_args[@]}")
+    local qemu_exit=$?
+    set -e
+
+    if [[ $qemu_exit -ne 0 ]]; then
+        echo "Error: QEMU failed to start (exit code: $qemu_exit)" >&2
+        if [[ -n "$qemu_error" ]]; then
+            echo "QEMU stderr output:" >&2
+            echo "$qemu_error" >&2
+        fi
+        echo "" >&2
+        echo "State directory: $state_dir" >&2
+        exit 1
+    fi
+
+    sleep 1
+
+    if [[ ! -f "$pid_file" ]]; then
+        echo "Error: QEMU pid file not created" >&2
+        echo "QEMU may have failed after daemonizing" >&2
+        rm -rf "$state_dir"
+        exit 1
+    fi
+
+    local pid
+    pid="$(cat "$pid_file")"
+    if ! kill -0 "$pid" 2>/dev/null; then
+        echo "Error: QEMU process not running (PID: $pid)" >&2
+        rm -rf "$state_dir"
+        exit 1
+    fi
+
+    # Wait for VM to be accessible via SSH
+    echo "Waiting for VM to boot..."
+    local max_wait=30
+    local waited=0
+    while ! ssh -o ConnectTimeout=1 \
+               -o StrictHostKeyChecking=no \
+               -o UserKnownHostsFile=/dev/null \
+               -p "$ssh_port" dev@localhost true 2>/dev/null; do
+        sleep 1
+        waited=$((waited + 1))
+        if [[ $waited -ge $max_wait ]]; then
+            echo "Error: VM was not reachable via ssh within ${max_wait}s" >&2
+            exit 1
+        fi
+    done
+
+    # Setup SSH alias
+    setup_ssh_alias "$name" "$ssh_port"
+    if is_ssh_alias_setup "$name"; then
+        echo "SSH alias setup: $name"
+    else
+        echo "SSH port: $ssh_port"
+    fi
+}
+
+stop_kvm_sandbox() {
+    local name="$1"
+    local state_dir
+    state_dir="$(kvm_state_dir "$name")"
+    local pid_file="$state_dir/qemu.pid"
+
+    if [[ -f "$pid_file" ]]; then
+        local pid
+        pid="$(cat "$pid_file")"
+        if kill -0 "$pid" 2>/dev/null; then
+            # Send SIGTERM for graceful shutdown
+            kill "$pid"
+
+            # Wait for graceful shutdown
+            local max_wait=10
+            local waited=0
+            while kill -0 "$pid" 2>/dev/null && [[ $waited -lt $max_wait ]]; do
+                sleep 1
+                waited=$((waited + 1))
+            done
+
+            # Force kill if still running
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    # Cleanup state directory
+    if [[ -d "$state_dir" ]]; then
+        rm -rf "$state_dir"
+    fi
+}
+
+stop_all_kvm_sandboxes() {
+    if [[ ! -d "$SANDBOX_RUN_DIR" ]]; then
+        return
+    fi
+
+    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+        if [[ ! -d "$state_dir" ]]; then
+            continue
+        fi
+
+        local name
+        name="$(basename "$state_dir")"
+        if is_kvm_running "$name"; then
+            stop_kvm_sandbox "$name"
+        else
+            # Clean up stale state
+            rm -rf "$state_dir"
+        fi
+    done
+}
+
+list_kvm_sandboxes() {
+    if [[ ! -d "$SANDBOX_RUN_DIR" ]]; then
+        echo "No sandboxes running"
+        return
+    fi
+
+    local found=false
+    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+        if [[ ! -d "$state_dir" ]]; then
+            continue
+        fi
+
+        found=true
+        break
+    done
+
+    if ! $found; then
+        echo "No sandboxes running"
+        return
+    fi
+
+    printf "%-30s %-15s %-10s\n" "NAME" "STATUS" "SSH_PORT"
+
+    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+        if [[ ! -d "$state_dir" ]]; then
+            continue
+        fi
+
+        local name
+        name="$(basename "$state_dir")"
+        local port_file="$state_dir/ssh.port"
+        local port="N/A"
+
+        if [[ -f "$port_file" ]]; then
+            port="$(cat "$port_file")"
+        fi
+
+        if is_kvm_running "$name"; then
+            printf "%-30s %-15s %-10s\n" "$name" "Running" "$port"
+        else
+            printf "%-30s %-15s %-10s\n" "$name" "Stopped (stale -> removing...)" "$port"
+            # Clean up stale state
+            rm -rf "$state_dir"
+        fi
+    done
+}
