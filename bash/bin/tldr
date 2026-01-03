@@ -57,3 +57,5 @@ tldr() {
             --preview "cat '$__tldr_cache/{1}' | $__tldr_script" \
             --bind "enter:execute(cat $__tldr_cache/{1} | $__tldr_script | less -r)"
 }
+
+tldr "$@"

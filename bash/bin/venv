@@ -1,4 +1,19 @@
-# shellcheck shell=sh
+#!/usr/bin/env bash
+
+venv_list() {
+    for env in "$HOME/.venv"/*; do
+        [ -d "$env" ] || continue
+        venvName=$(basename "$env")
+
+        printf "%s" "$venvName"
+        if [ "$VIRTUAL_ENV" = "$env" ]; then
+            echo " *"
+        else
+            echo
+        fi
+    done
+}
+
 venv() {
     venvSwitchTo="$1"
     if [ -z "$venvSwitchTo" ]; then
@@ -31,16 +46,4 @@ venv() {
 
 }
 
-venv_list() {
-    for env in "$HOME/.venv"/*; do
-        [ -d "$env" ] || continue
-        venvName=$(basename "$env")
-
-        printf "%s" "$venvName"
-        if [ "$VIRTUAL_ENV" = "$env" ]; then
-            echo " *"
-        else
-            echo
-        fi
-    done
-}
+venv "$@"

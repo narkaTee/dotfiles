@@ -20,3 +20,5 @@ manz () {
     page="$(basename "$selected_path" '.gz')"
     man "$page"
 }
+
+ mainz "$@"
