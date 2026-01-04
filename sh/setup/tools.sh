@@ -43,7 +43,7 @@ else
     }
 fi
 n_update() {
-    __n_latest_version="$(curl -sS https://api.github.com/repos/tj/n/releases/latest | jq -r .tag_name)"
+    __n_latest_version="$(curl --retry 5 --retry-max-time 15 -sS https://api.github.com/repos/tj/n/releases/latest | jq -r .tag_name)"
     if [ ! -d "$N_PREFIX" ]; then
         echo "n is not installed, install? [y] or abort with ctrl+c"
     else
