@@ -66,15 +66,15 @@ if [ -f "$HOME/.config/op/plugins.sh" ]; then
     . "$HOME/.config/op/plugins.sh"
 fi
 
-if [ -d "$HOME/.config/boxed" ]; then
+if [ -d "$HOME/.config/boxed" ] && hash bwrap 2>/dev/null; then
     export PATH="$PATH:$HOME/.config/boxed"
-    alias npm="boxed npm npm"
-    alias npx="boxed npm npx"
-    alias pnpm="boxed npm pnpm"
-    alias pnpx="boxed npm pnpx"
-    alias yarn="boxed npm yarn"
-    alias yarnpkg="boxed npm yarnpkg"
-    alias aj="boxed ai-jail"
+    alias npm="boxed npm -- npm"
+    alias npx="boxed npm -- npx"
+    alias pnpm="boxed npm -- pnpm"
+    alias pnpx="boxed npm -- pnpx"
+    alias yarn="boxed npm -- yarn"
+    alias yarnpkg="boxed npm -- yarnpkg"
+    alias aj="boxed ai-jail --"
 fi
 
 # Setup EDITOR and VISUAL
