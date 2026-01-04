@@ -16,3 +16,7 @@ nnoremap <Leader>n :bnext<CR>
 nnoremap <Leader>p :bprev<CR>
 nnoremap <C-b>o :%bdelete\|edit #\|normal `"<CR>
 nnoremap <C-b>c :bd<CR>
+
+" easier indentation
+vnoremap < <gv
+vnoremap > >gv
