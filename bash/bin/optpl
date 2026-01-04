@@ -27,6 +27,12 @@ optpl() {
     fi
     shift
 
+    if [ ! -t 1 ]; then
+        # stdout not connected to terminal, means out output is piped somewhere
+        echo "optpl: Detected pipe: outputing template to stdout" >&2
+        set -- -
+    fi
+
     if [ $# -lt 1 ]; then
         echo "No command given" >&2
         exit 1
@@ -38,9 +44,23 @@ optpl() {
         template="$alias"
     fi
 
+    if ! hash op 2>/dev/null; then
+        echo "optpl Warning: op cli not found, not running op" >&2
+        run_op=false
+    fi
+
     if [ ! -f "$template" ]; then
         echo "optpl Warning: template $template does not exist, not running op" >&2
         run_op=false
+    fi
+
+    if [ "$1" = '-' ]; then
+        if [ "$run_op" = true ]; then
+            op inject -i "$template"
+            exit
+        else
+            exit 1
+        fi
     fi
 
     local target="${template/.optpl/}"
@@ -55,10 +75,6 @@ optpl() {
     # For know just print a warning and skip the injection.
     if [ -e "$target" ]; then
         echo "optpl Warning: The target $target already exists, not running op" >&2
-        run_op=false
-    fi
-    if ! hash op 2>/dev/null; then
-        echo "optpl Warning: op cli not found, not running op" >&2
         run_op=false
     fi
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 SSH_CONFIG_DIR="$HOME/.ssh/config.d"
 BACKEND="container"
+AI_BOOTSTRAP=""
 
 validate_and_init_backend() {
     case "$BACKEND" in
@@ -182,6 +183,10 @@ cmd_start_or_enter() {
         backend_start "$name"
     fi
 
+    if [[ -n "$AI_BOOTSTRAP" ]]; then
+        bootstrap_ai "$name" "$AI_BOOTSTRAP"
+    fi
+
     backend_enter "$name"
 }
 
@@ -332,9 +337,11 @@ sandbox - Containerized development sandbox
 Usage:
     sandbox [--kvm|--container] <command>
 
-Flags:
-    --kvm         Use KVM backend
-    --container   Use container backend
+Global Flags:
+    --kvm           Use KVM backend
+    --container     Use container backend
+    --agent <name>  Bootstrap an AI agent in the sandbox with credentials from the host
+                    Supported Agents: claude, gemini, opencode
 
 Backend Selection:
     The backend is automatically detected based on running sandboxes.
@@ -377,6 +384,17 @@ main() {
                 BACKEND="container"
                 backend_explicitly_set=true
                 shift
+                ;;
+            --agent)
+                local agent="${2:-}"
+                if [[ -z "$agent" ]]; then
+                    echo "--agent parameter is missing the value"
+                    exit 1
+                fi
+                source "$HOME/.config/lib/bash/sandbox/ai-bootstrap"
+                ensure_know_agent "$agent"
+                AI_BOOTSTRAP="$agent"
+                shift 2
                 ;;
             *)
                 non_option_args+=("$1")
