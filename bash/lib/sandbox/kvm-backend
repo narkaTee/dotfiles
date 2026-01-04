@@ -74,15 +74,18 @@ allocate_ssh_port() {
 }
 
 fetch_image() {
-    cd "$SANDBOX_CACHE"
+    # run in a subshell to contain directory change.
+    (
+        cd "$SANDBOX_CACHE"
 
-    if oras pull "$KVM_IMAGE_NAME:$KVM_IMAGE_TAG" 2>&1; then
-        echo "decompressing image..."
-        zstd -d "$BASE_DISK_ZST"
-    else
-        echo "Failed to fetch image." >&2
-        exit 1
-    fi
+        if oras pull "$KVM_IMAGE_NAME:$KVM_IMAGE_TAG" 2>&1; then
+            echo "decompressing image..."
+            zstd -d "$BASE_DISK_ZST"
+        else
+            echo "Failed to fetch image." >&2
+            exit 1
+        fi
+    )
 }
 
 ensure_kernel() {
@@ -174,8 +177,8 @@ start_kvm_sandbox() {
         -enable-kvm
         -machine "smm=off,vmport=off,pit=off"
         -cpu host
-        -m 4096
-        -smp 2
+        -m 8192
+        -smp 6
         -nographic
         -monitor none
         -display none
@@ -189,7 +192,9 @@ start_kvm_sandbox() {
         -device "isa-serial,chardev=serial0"
         -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
         -device "virtio-net,netdev=net0"
-        -virtfs "local,path=$workspace,mount_tag=workspace,security_model=none,readonly=off"
+        # mapped prevents the vm root user to write files as root to the directory
+        # Even though that would probably fail because qemu runs a nun root user.
+        -virtfs "local,path=$workspace,mount_tag=workspace,security_model=mapped,readonly=off"
         # prevent qemu from starting to the background: elevateprivileges=deny,spawn=deny
         -sandbox "on,obsolete=deny,resourcecontrol=deny"
         -rtc "base=utc,clock=vm"
