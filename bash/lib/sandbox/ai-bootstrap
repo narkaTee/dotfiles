@@ -1,0 +1,122 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+ensure_know_agent() {
+    case "${1:-}" in
+        claude|gemini|opencode) ;;
+        *)
+            echo "Unknown agent '${1:-}'" >&2
+            exit 1
+            ;;
+    esac
+}
+
+build_claude_config() {
+    local tmp_target="$1/.claude"
+    local source="$HOME/.claude"
+    mkdir -p "$tmp_target"
+
+    local claude_optpl
+    claude_optpl=$(optpl --show-alias claude)
+    if [[ -f "$source/settings.json" ]]; then
+        cp "$source/settings.json" "$tmp_target/"
+    elif [[ -f "$claude_optpl" ]]; then
+        optpl claude > "$tmp_target/settings.json"
+    fi
+
+    # Create minimal user config to skip initial setup dialog
+    cat > "$1/.claude.json" <<'EOF'
+{
+  "theme": "dark",
+  "hasCompletedOnboarding": true
+}
+EOF
+}
+
+build_gemini_config() {
+    local tmp_target="$1/.gemini"
+    local source="$HOME/.gemini"
+    mkdir -p "$tmp_target"
+
+    cp "$source/.env" "$tmp_target"
+    # feels a bit strange, no idea how a compromised token might be revoked.
+    # maybe we'll just go through the setup again for now until I know how tokens can be revoked.
+    #cp "$source/oauth_creds.json" "$tmp_target"
+}
+
+build_opencode_config() {
+    local tmp_target="$1/.config/opencode"
+    local source="$HOME/.config/opencode"
+    mkdir -p "$tmp_target"
+
+    local opencode_optpl
+    opencode_optpl=$(optpl --show-alias opencode)
+    if [[ -f "$source/opencode.jsonc" ]]; then
+        cp "$source/opencode.jsonc" "$tmp_target/"
+    elif [[ -f "$opencode_optpl" ]]; then
+        optpl opencode > "$tmp_target/opencode.jsonc"
+    fi
+}
+
+bootstrap_ai() {
+    local name="$1"
+    local agent="$2"
+
+    local ssh_cmd
+    local ssh_port
+    local scp_args
+    local scp_host
+    declare -a ssh_cmd=(ssh)
+    declare -a scp_args=()
+    if is_ssh_alias_setup "$name"; then
+        ssh_cmd+=("$name")
+        scp_host="$name"
+    elif ssh_port="$(backend_get_ssh_port "$name")"; then
+        ssh_cmd+=(
+            -o UserKnownHostsFile=/dev/null
+            -o StrictHostKeyChecking=no
+            -p "$ssh_port"
+            dev@localhost
+        )
+        scp_args+=(
+            -o UserKnownHostsFile=/dev/null
+            -o StrictHostKeyChecking=no
+            # it is a upper case P for scp
+            -P "$ssh_port"
+        )
+        scp_host="dev@localhost"
+    else
+        echo "Could neither find a SSH alias nor a SSH port for sandbox $name" >&2
+        exit 1
+    fi
+
+    local temp
+    temp="$(mktemp -p /tmp -d bootstrap-ai-agent-XXXXXXXX)"
+    # shellcheck disable=SC2064
+    trap "rm -rf $temp" exit
+
+    case "$agent" in
+        claude)
+            build_claude_config "$temp"
+            npm_package="@anthropic-ai/claude-code"
+            ;;
+        gemini)
+            build_gemini_config "$temp"
+            npm_package="@google/gemini-cli"
+            ;;
+        opencode)
+            build_opencode_config "$temp"
+            npm_package="opencode-ai"
+            ;;
+        *)
+            echo "Unknown agent '$agent'" >&2
+            exit 1
+            ;;
+    esac
+
+    echo "Uploading agent config"
+    scp -r "$temp"/.* "$scp_host:~/"
+    rm -rf "$temp"
+    echo "Installing/Updating Agent..."
+    "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && npm -g install $npm_package'"
+}
