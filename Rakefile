@@ -255,7 +255,8 @@ task :vscode do
   Cfg.file("0644", src: "vscode/settings.json", dst: "#{HOME}/.config/Code/User/settings.json")
   if has_command("code")
     [
-      'ms-azuretools.vscode-containers'
+      'ms-azuretools.vscode-containers',
+      'vscodevim.vim',
     ].each do |ext|
       sh "code --install-extension #{ext}"
     end

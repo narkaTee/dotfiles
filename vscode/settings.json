@@ -3,5 +3,57 @@
     "files.trimTrailingWhitespace": true,
     "files.autoSave": "onFocusChange",
     "editor.fontFamily": "'SauceCodePro Nerd Font', 'Droid Sans Mono', 'monospace', monospace",
-    "editor.fontSize": 15
+    "window.zoomLevel": 0.60,
+    "editor.fontSize": 14,
+    "window.title": "${rootName}${separator}${dirty}${activeEditorShort}${separator}${profileName}${separator}${appName}",
+    "vim.useSystemClipboard": true,
+    "vim.highlightedyank.enable": true,
+    "vim.shell": "/usr/bin/zsh",
+    "vim.leader": "<space>",
+    "vim.normalModeKeyBindings": [
+        {
+            "before": ["<leader>", "o"],
+            "commands": [
+                "workbench.action.quickOpen"
+            ]
+        },
+        {
+            "before": ["<leader>", "n"],
+            "commands": [
+                "workbench.action.nextEditor"
+            ]
+        },
+        {
+            "before": ["<leader>", "p"],
+            "commands": [
+                "workbench.action.previousEditor"
+            ]
+        },
+        {
+            "before": ["<leader>", "d"],
+            "commands": [
+                "editor.action.revealDefinition"
+            ]
+        },
+        {
+            "before": ["<leader>", "f"],
+            "commands": [
+                "actions.find"
+            ]
+        },
+    ],
+    "vim.visualModeKeyBindings": [
+        {
+            "before": [">"],
+            "commands": [
+                "editor.action.indentLines"
+            ]
+        },
+        {
+            "before": ["<"],
+            "commands": [
+                "editor.action.outdentLines"
+            ]
+        },
+    ],
 }
