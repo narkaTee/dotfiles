@@ -10,7 +10,7 @@ DISK_IMAGE_ZST="$SANDBOX_CACHE/$BASE_DISK_ZST"
 DISK_IMAGE="$SANDBOX_CACHE/$BASE_DISK"
 KERNEL_EXTRACT="$SANDBOX_CACHE/vmlinuz"
 INITRD_EXTRACT="$SANDBOX_CACHE/initrd"
-SANDBOX_RUN_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/sandbox"
+SANDBOX_RUN_DIR="${HOME}/.cache/dotfiles/kvm-sandbox/run"
 
 kvm_state_dir() {
     local name="$1"
@@ -160,7 +160,7 @@ start_kvm_sandbox() {
     console_socket="$(kvm_console_socket "$name")"
     local workspace_file="$state_dir/workspace.path"
 
-    qemu-img create -f qcow2 -b "$(realpath "$DISK_IMAGE")" -F qcow2 "$overlay" >/dev/null
+    qemu-img create -f qcow2 -b "$(realpath "$DISK_IMAGE")" -F qcow2 "$overlay" 20G >/dev/null
     chmod 600 "$overlay"
 
     local ssh_port
@@ -176,8 +176,9 @@ start_kvm_sandbox() {
 
     local qemu_args=(
         -enable-kvm
-        -machine "smm=off,vmport=off,pit=off"
-        -cpu host
+        -machine "pc,smm=off,vmport=off,pit=off,dump-guest-core=off"
+        # maximum emulateable feature set, migratable disables host specific features
+        -cpu "max,migratable=on"
         -m 8192
         -smp 6
         -nographic
@@ -188,7 +189,7 @@ start_kvm_sandbox() {
         -kernel "$KERNEL_EXTRACT"
         -initrd "$INITRD_EXTRACT"
         -append "console=ttyS0 root=/dev/vda3 rw quiet"
-        -drive "file=$overlay,if=virtio,cache=unsafe"
+        -drive "file=$overlay,if=virtio,cache=writeback,werror=report"
         -chardev "socket,id=serial0,path=$console_socket,server=on,wait=off"
         -device "isa-serial,chardev=serial0"
         -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
