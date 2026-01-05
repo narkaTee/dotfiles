@@ -83,13 +83,6 @@ backend_get_ssh_port() {
     esac
 }
 
-backend_ensure_image() {
-    case "$BACKEND" in
-        container) ensure_container_image ;;
-        kvm) ensure_kvm_image ;;
-    esac
-}
-
 backend_start() {
     local name="$1"
     case "$BACKEND" in
@@ -179,7 +172,6 @@ cmd_start_or_enter() {
     else
         validate_no_backend_conflict
         echo "Starting sandbox: $name ($BACKEND backend)"
-        backend_ensure_image
         backend_start "$name"
     fi
 

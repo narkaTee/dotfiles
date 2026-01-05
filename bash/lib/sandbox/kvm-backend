@@ -147,6 +147,7 @@ start_kvm_sandbox() {
     local name="$1"
     local workspace="$PWD"
 
+    ensure_kvm_image
     ensure_state_dir "$name"
 
     local state_dir
