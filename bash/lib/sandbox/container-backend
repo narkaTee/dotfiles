@@ -62,8 +62,6 @@ start_container_sandbox() {
 
     ensure_container_image
 
-    echo "Starting sandbox: $name"
-
     local ssh_keys
     ssh_keys=$(get_ssh_agent_keys)
 
@@ -90,6 +88,27 @@ start_container_sandbox() {
         )
     fi
 
+    if [[ $PROXY = true ]]; then
+        ensure_proxy_container "$name"
+
+        local network_name="sandbox-net-$name"
+
+        local proxy_ip
+        proxy_ip="$(get_proxy_ip "$name")"
+        if [[ -z "$proxy_ip" ]]; then
+            echo "Error: Could not determine proxy IP address" >&2
+            exit 1
+        fi
+
+        run_args+=(
+            --network "$network_name"
+            -e "HTTP_PROXY=http://$proxy_ip:8888"
+            -e "HTTPS_PROXY=http://$proxy_ip:8888"
+            -e "http_proxy=http://$proxy_ip:8888"
+            -e "https_proxy=http://$proxy_ip:8888"
+        )
+    fi
+
     run_args+=(
         --memory=8g
         --memory-swap=8g
@@ -106,6 +125,7 @@ start_container_sandbox() {
         "$SANDBOX_IMAGE"
     )
 
+    echo "Starting sandbox: $name"
     $CONTAINER_ENGINE run "${run_args[@]}" >/dev/null
 
     local port
@@ -123,6 +143,8 @@ start_container_sandbox() {
 stop_container_sandbox() {
     local name="$1"
     "$CONTAINER_ENGINE" stop "$name" >/dev/null
+    stop_proxy_container "$name"
+    remove_proxy_network "$name"
 }
 
 list_container_sandboxes() {
@@ -135,5 +157,20 @@ stop_all_container_sandboxes() {
     if [[ -n "$containers" ]]; then
         echo "Stopping container sandboxes..."
         echo "$containers" | xargs "$CONTAINER_ENGINE" stop >/dev/null
+    fi
+
+    local proxies
+    proxies="$($CONTAINER_ENGINE ps -q --filter "name=^sandbox-proxy-")"
+    if [[ -n "$proxies" ]]; then
+        echo "Stopping proxy containers..."
+        echo "$proxies" | xargs "$CONTAINER_ENGINE" stop >/dev/null
+    fi
+
+    # Remove all sandbox networks
+    local networks
+    networks="$($CONTAINER_ENGINE network ls -q --filter "name=^sandbox-net-")"
+    if [[ -n "$networks" ]]; then
+        echo "Removing sandbox networks..."
+        echo "$networks" | xargs "$CONTAINER_ENGINE" network rm >/dev/null 2>&1 || true
     fi
 }

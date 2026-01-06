@@ -6,6 +6,8 @@ BACKEND="container"
 AI_BOOTSTRAP=""
 # shellcheck disable=SC2034
 SANDBOX_CACHE_BASE="$HOME/.cache/sandbox"
+# shellcheck disable=SC2034
+PROXY=false
 
 validate_and_init_backend() {
     case "$BACKEND" in
@@ -30,6 +32,8 @@ validate_and_init_backend() {
 
     source "$HOME/.config/lib/bash/sandbox/container-backend"
     source "$HOME/.config/lib/bash/sandbox/kvm-backend"
+    source "$HOME/.config/lib/bash/sandbox/proxy-backend"
+    source "$HOME/.config/lib/bash/sandbox/proxy-cli"
 }
 
 sandbox_name() {
@@ -338,6 +342,7 @@ Usage:
 Global Flags:
     --kvm           Use KVM backend
     --container     Use container backend
+    --proxy         Force all communication to go throug a restrictive proxy
     --agent <name>  Bootstrap an AI agent in the sandbox with credentials from the host
                     Supported Agents: claude, gemini, opencode
 
@@ -350,6 +355,7 @@ Commands:
     (none)        Start/enter sandbox for current directory
     idea          Open IntelliJ IDEA connected to sandbox
     code          Open Visual Studio Code connected to sandbox
+    proxy         Manage proxy and domain allowlist (see 'proxy help')
     list          List running sandboxes
     stop          Stop sandbox for current directory
     stop -a       Stop all sandboxes (both backends)
@@ -381,6 +387,11 @@ main() {
             --container)
                 BACKEND="container"
                 backend_explicitly_set=true
+                shift
+                ;;
+            --proxy)
+                # shellcheck disable=SC2034
+                PROXY=true
                 shift
                 ;;
             --agent)
@@ -417,6 +428,7 @@ main() {
         ""|start|enter)  cmd_start_or_enter ;;
         idea)            cmd_idea ;;
         code)            cmd_code ;;
+        proxy)           shift; cmd_proxy "$@" ;;
         ls|list)         cmd_list ;;
         stop)            shift; cmd_stop "$@" ;;
         info)            cmd_info ;;

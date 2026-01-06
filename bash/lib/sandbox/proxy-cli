@@ -1,0 +1,144 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+cmd_proxy_info() {
+    local name
+    name="$(sandbox_name)"
+
+    echo "Proxy Containers:"
+    list_proxy_containers
+
+    echo ""
+    local proxy_dir
+    proxy_dir="$(proxy_data_dir "$name")"
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+
+    echo "Proxy directory: $proxy_dir"
+    echo "Allowlist: $allowlist"
+
+    if [[ -f "$allowlist" ]]; then
+        local count
+        count=$(grep -v -c -E '^(#|$)' "$allowlist")
+        echo "Allowed domains: $count"
+    fi
+}
+
+cmd_proxy_logs() {
+    local name
+    name="$(sandbox_name)"
+
+    echo "Proxy logs for $name:"
+    get_proxy_logs "$name"
+}
+
+cmd_proxy_blocked() {
+    local name
+    name="$(sandbox_name)"
+
+    echo "Blocked domains for $name:"
+    get_blocked_domains "$name"
+}
+
+cmd_proxy_allow() {
+    local domain="${1:-}"
+
+    if [[ -z "$domain" ]]; then
+        echo "Error: Domain required" >&2
+        echo "Usage: sandbox proxy allow <domain>" >&2
+        exit 1
+    fi
+
+    local name
+    name="$(sandbox_name)"
+
+    proxy_allow_domain "$name" "$domain"
+}
+
+cmd_proxy_remove() {
+    local domain="${1:-}"
+
+    if [[ -z "$domain" ]]; then
+        echo "Error: Domain required" >&2
+        echo "Usage: sandbox proxy remove <domain>" >&2
+        exit 1
+    fi
+
+    local name
+    name="$(sandbox_name)"
+
+    proxy_remove_domain "$name" "$domain"
+}
+
+cmd_proxy_reset() {
+    local name
+    name="$(sandbox_name)"
+
+    reset_allow_list "$name"
+}
+
+cmd_proxy_list() {
+    local name
+    name="$(sandbox_name)"
+
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+
+    echo "Allowed domains:"
+    if [[ -f "$allowlist" ]]; then
+        grep -v '^#' "$allowlist" | grep -v '^$' | sed 's/^\^//;s/\$$//;s/\\\././g' | sort
+    else
+        echo "(no allowlist file found)"
+    fi
+}
+
+cmd_proxy_help() {
+    cat <<EOF
+sandbox proxy - Manage sandbox proxy and domain allowlist
+
+Usage:
+    sandbox proxy <command>
+
+Commands:
+    info          Show proxy container status and allowlist info
+    logs            Show proxy logs for current sandbox
+    blocked         Show blocked domains with attempt counts
+    allow <domain>  Add domain to allowlist
+    remove <domain> Remove domain from allowlist
+    reset           Reset the allow list to the default
+    list            List all allowed domains
+    help            Show this help
+
+The proxy enforces network isolation for sandboxes. Only domains
+in the allowlist can be accessed. Blocked connection attempts are
+logged and can be viewed with 'blocked'
+EOF
+}
+
+# Main proxy command dispatcher
+cmd_proxy() {
+    local subcmd="${1:-}"
+
+    case "$subcmd" in
+        info)           cmd_proxy_info ;;
+        logs)           cmd_proxy_logs ;;
+        blocked)        cmd_proxy_blocked ;;
+        allow)          shift; cmd_proxy_allow "$@" ;;
+        remove|rm)      shift; cmd_proxy_remove "$@" ;;
+        reset)          cmd_proxy_reset ;;
+        list|ls)        cmd_proxy_list ;;
+        help|--help|-h) cmd_proxy_help ;;
+        "")
+            echo "Error: Proxy command required" >&2
+            echo "" >&2
+            cmd_proxy_help
+            exit 1
+            ;;
+        *)
+            echo "Error: Unknown proxy command: $subcmd" >&2
+            echo "" >&2
+            cmd_proxy_help
+            exit 1
+            ;;
+    esac
+}

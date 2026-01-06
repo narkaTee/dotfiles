@@ -1,0 +1,241 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+PROXY_DATA_DIR="$SANDBOX_CACHE_BASE/sandbox-proxy"
+PROXY_IMAGE="sandbox-proxy:latest"
+
+proxy_data_dir() {
+    local name="$1"
+    echo "$PROXY_DATA_DIR/$name"
+}
+
+proxy_allowlist_path() {
+    local name="$1"
+    local data_dir
+    data_dir="$(proxy_data_dir "$name")"
+    echo "${data_dir}/allowlist.txt"
+}
+
+get_kvm_proxy_port() {
+    local name="$1"
+    local proxy_name="sandbox-proxy-kvm-$name"
+
+    $CONTAINER_ENGINE port "$proxy_name" 8888 2>/dev/null | head -1 | cut -d: -f2
+}
+
+reset_allow_list() {
+    local name="$1"
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+    cp "$HOME/.config/lib/bash/sandbox/proxy/allowlist.txt" "$allowlist"
+    chmod 644 "$allowlist"
+}
+
+ensure_proxy_data_dir() {
+    local name="$1"
+    local dir
+    dir="$(proxy_data_dir "$name")"
+    mkdir -p "$dir"
+    chmod 700 "$dir"
+
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+    if [[ ! -f "$allowlist" ]]; then
+        reset_allow_list "$name"
+    fi
+}
+
+ensure_proxy_image() {
+    echo "Building proxy image..."
+    local proxy_dir="$HOME/.config/lib/bash/sandbox/proxy"
+    $CONTAINER_ENGINE build -q -t "$PROXY_IMAGE" "$proxy_dir" >/dev/null
+}
+
+ensure_proxy_network() {
+    local name="$1"
+    local network_name="sandbox-net-$name"
+
+    if $CONTAINER_ENGINE network exists "$network_name" 2>/dev/null; then
+        echo "Network $network_name already exists aborting" >&2
+        exit 1
+    fi
+
+    echo "Creating isolated network: $network_name"
+    $CONTAINER_ENGINE network create --internal --disable-dns "$network_name" >/dev/null
+}
+
+_start_proxy_base() {
+    local sandbox_name="$1"
+    local proxy_name="$2"
+    shift 2
+
+    ensure_proxy_data_dir "$sandbox_name"
+    ensure_proxy_image
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+
+    local proxy_dir
+    proxy_dir="$(proxy_data_dir "$sandbox_name")"
+    mkdir -p "$proxy_dir"
+    chmod 700 "$proxy_dir"
+
+
+    if $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        return 0
+    fi
+
+    $CONTAINER_ENGINE run \
+        -d \
+        --name "$proxy_name" \
+        "$@" \
+        -v "$allowlist:/home/tinyproxy/allowlist.txt:ro" \
+        --rm \
+        "$PROXY_IMAGE" >/dev/null
+}
+
+ensure_proxy_container() {
+    local sandbox_name="$1"
+    local proxy_name="sandbox-proxy-$sandbox_name"
+    local network_name="sandbox-net-$sandbox_name"
+
+    ensure_proxy_network "$sandbox_name"
+
+    echo "Starting proxy container: $proxy_name"
+
+    _start_proxy_base "$sandbox_name" "$proxy_name" --network podman
+
+    $CONTAINER_ENGINE network connect "$network_name" "$proxy_name"
+}
+
+ensure_kvm_proxy() {
+    local sandbox_name="$1"
+    local proxy_name="sandbox-proxy-kvm-$sandbox_name"
+
+    echo "Starting KVM proxy container: $proxy_name"
+
+    _start_proxy_base "$sandbox_name" "$proxy_name" -P
+}
+
+get_proxy_ip() {
+    local sandbox_name="$1"
+    local proxy_name="sandbox-proxy-$sandbox_name"
+    local network_name="sandbox-net-$sandbox_name"
+
+    $CONTAINER_ENGINE inspect "$proxy_name" \
+        --format "{{range \$net, \$conf := .NetworkSettings.Networks}}{{if eq \$net \"$network_name\"}}{{.IPAddress}}{{end}}{{end}}" 2>/dev/null
+}
+
+_stop_proxy_generic() {
+    local proxy_name="$1"
+
+    if $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        echo "Stopping proxy: $proxy_name"
+        $CONTAINER_ENGINE stop "$proxy_name" >/dev/null 2>&1 || true
+    fi
+}
+
+stop_proxy_container() {
+    local sandbox_name="$1"
+    _stop_proxy_generic "sandbox-proxy-$sandbox_name"
+}
+
+stop_kvm_proxy() {
+    local sandbox_name="$1"
+    _stop_proxy_generic "sandbox-proxy-kvm-$sandbox_name"
+}
+
+remove_proxy_network() {
+    local sandbox_name="$1"
+    local network_name="sandbox-net-$sandbox_name"
+
+    if $CONTAINER_ENGINE network exists "$network_name" 2>/dev/null; then
+        echo "Removing network: $network_name"
+        $CONTAINER_ENGINE network rm "$network_name" >/dev/null 2>&1 || true
+    fi
+}
+
+_domain_to_regex_pattern() {
+    local domain="$1"
+    echo "^${domain//./\\.}$"
+}
+
+proxy_allow_domain() {
+    local name="$1"
+    local domain="$2"
+
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+
+    local pattern
+    pattern="$(_domain_to_regex_pattern "$domain")"
+
+    if grep -qF "$pattern" "$allowlist" 2>/dev/null; then
+        echo "Pattern already in allowlist: $pattern"
+        return 0
+    fi
+
+    echo "Adding pattern to allowlist: $pattern"
+    echo "$pattern" >> "$allowlist"
+    echo "Allowlist updated. Proxy will reload automatically."
+}
+
+proxy_remove_domain() {
+    local name="$1"
+    local domain="$2"
+
+    local allowlist
+    allowlist="$(proxy_allowlist_path "$name")"
+
+    local pattern
+    pattern="$(_domain_to_regex_pattern "$domain")"
+
+    if grep -qF "$pattern" "$allowlist" 2>/dev/null; then
+        echo "Removing domain from allowlist: $domain"
+        grep -vF "$pattern" "$allowlist" > "$allowlist.tmp"
+        cat "$allowlist.tmp" > "$allowlist"
+        rm "$allowlist.tmp"
+        echo "Allowlist updated. Proxy will reload automatically."
+    else
+        echo "Domain not found in allowlist: $domain"
+        return 1
+    fi
+}
+
+list_proxy_containers() {
+    $CONTAINER_ENGINE ps --filter "name=^sandbox-proxy-" --format "table {{.Names}}\t{{.Status}}\t{{.Networks}}"
+}
+
+get_proxy_logs() {
+    local sandbox_name="$1"
+    local proxy_name="sandbox-proxy-$sandbox_name"
+
+    if ! $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        proxy_name="sandbox-proxy-kvm-$sandbox_name"
+    fi
+
+    if $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        $CONTAINER_ENGINE exec "$proxy_name" cat /home/tinyproxy/tinyproxy.log 2>/dev/null || echo "No logs available"
+    else
+        echo "Proxy not running for: $sandbox_name"
+        return 1
+    fi
+}
+
+get_blocked_domains() {
+    local sandbox_name="$1"
+    local proxy_name="sandbox-proxy-$sandbox_name"
+
+    if ! $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        proxy_name="sandbox-proxy-kvm-$sandbox_name"
+    fi
+
+    if $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
+        $CONTAINER_ENGINE exec "$proxy_name" cat /home/tinyproxy/tinyproxy.log 2>/dev/null \
+            | grep -i "refused on filtered" \
+            | sed -n 's/.*filtered domain "\([^"]*\).*"/\1/p' \
+            | sort | uniq -c | sort -rn
+    else
+        echo "Proxy not running for: $sandbox_name"
+        return 1
+    fi
+}
