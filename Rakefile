@@ -39,9 +39,17 @@ task :check => [
 task :shellcheck do
   dirs = ["git/scripts", "sh", "bash"]
   ignore = ["bash/bashrc.d/z.sh"]
-  files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }.select { |f| File.file?(f) && !ignore.include?(f) }
+  extensions = [".sh", ".bash", ""]  # empty string for extensionless files
+
+  files = dirs.flat_map { |dir| Dir.glob("#{dir}/**/*") }
+    .select { |f| File.file?(f) && !ignore.include?(f) }
+    .select { |f| extensions.include?(File.extname(f)) }
+
   failed = false
   files.each do |file|
+    # Skip files that are clearly not shell scripts
+    next if File.basename(file).match?(/(Containerfile.*|Dockerfile.*)$/i)
+
     puts "Checking #{file}"
     sh "shellcheck '#{file}'" do |ok|
       failed ||= !ok

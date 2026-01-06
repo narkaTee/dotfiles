@@ -189,8 +189,6 @@ start_kvm_sandbox() {
         -drive "file=$overlay,if=virtio,cache=writeback,werror=report"
         -chardev "socket,id=serial0,path=$console_socket,server=on,wait=off"
         -device "isa-serial,chardev=serial0"
-        -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
-        -device "virtio-net,netdev=net0"
         # mapped prevents the vm root user to write files as root to the directory
         # Even though that would probably fail because qemu runs a nun root user.
         -virtfs "local,path=$workspace,mount_tag=workspace,security_model=mapped,readonly=off"
@@ -206,6 +204,46 @@ start_kvm_sandbox() {
     if [[ -n "$ssh_keys" ]]; then
         qemu_args+=(-fw_cfg "name=opt/com.sandbox/ssh_keys,string=$ssh_keys")
     fi
+
+    if [[ $PROXY = true ]]; then
+        ensure_kvm_proxy "$name"
+
+        # Get proxy port
+        local proxy_port
+        proxy_port="$(get_kvm_proxy_port "$name")"
+        if [[ -z "$proxy_port" ]]; then
+            echo "Error: Could not determine proxy port" >&2
+            exit 1
+        fi
+
+        local proxy_env="export HTTP_PROXY=http://10.0.2.100:8888
+export HTTPS_PROXY=http://10.0.2.100:8888
+export http_proxy=http://10.0.2.100:8888
+export https_proxy=http://10.0.2.100:8888"
+
+        qemu_args+=(
+            -fw_cfg "name=opt/com.sandbox/proxy_env,string=$proxy_env"
+            # yes calling netcat for every connection seems a bit strange...
+            # for some reason when running with userspace networking the connection handling is
+            # strange (at least with the versions on debian trixie)
+            # When using guestfwd=tcp:10.0.2.100:8888-tco:127.0.0.1:${proxy_port} (like any sane person)
+            # the first connection works totally fine.
+            # The second connection however is not working properly. Inside the guest the tcp handshake is successfully completed.
+            # So for example curl can complete the handshake with the qemu side of the slip4netns stack.
+            # Then: nothing. No package reaches the host systems lo interface (the first request reached the interface).
+            # There is something strange happening and I don't care enough to take a deep dive into the
+            # network stack ¯\_(ツ)_/¯ netcat it is!
+            -netdev "user,id=net0,restrict=on,hostfwd=tcp::${ssh_port}-:2222,guestfwd=tcp:10.0.2.100:8888-cmd:netcat 127.0.0.1 ${proxy_port}"
+        )
+    else
+        qemu_args+=(
+            -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
+        )
+    fi
+
+    qemu_args+=(
+            -device "virtio-net,netdev=net0"
+    )
 
     echo "Starting QEMU..."
 
@@ -302,6 +340,9 @@ stop_kvm_sandbox() {
     if [[ -d "$state_dir" ]]; then
         rm -rf "$state_dir"
     fi
+
+    # Stop KVM proxy
+    stop_kvm_proxy "$name"
 }
 
 stop_all_kvm_sandboxes() {
@@ -323,6 +364,14 @@ stop_all_kvm_sandboxes() {
             rm -rf "$state_dir"
         fi
     done
+
+    # Stop all KVM proxy containers
+    local proxies
+    proxies="$($CONTAINER_ENGINE ps -q --filter "name=^sandbox-proxy-kvm-")"
+    if [[ -n "$proxies" ]]; then
+        echo "Stopping KVM proxy containers..."
+        echo "$proxies" | xargs "$CONTAINER_ENGINE" stop >/dev/null 2>&1 || true
+    fi
 }
 
 list_kvm_sandboxes() {

@@ -118,5 +118,5 @@ bootstrap_ai() {
     scp -r "$temp"/.* "$scp_host:~/"
     rm -rf "$temp"
     echo "Installing/Updating Agent..."
-    "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && npm -g install $npm_package'"
+    "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && source ~/.config/setup/env.sh && npm -g install $npm_package'"
 }

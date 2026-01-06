@@ -1,0 +1,46 @@
+# Sandbox Proxy Allowlist
+#
+# Format: One regex pattern per line
+# Example: ^example\.com$ allows exactly "example.com"
+# Example: ^.*\.example\.com$ allows all subdomains of example.com
+
+# Package managers
+^.*\.npmjs\.org$
+^.*\.yarnpkg\.com$
+^.*\.debian\.org$
+^.*\.pypi\.org$
+^.*\.rubygems\.org$
+^.*\.sdkman\.io$
+^.*\.brew\.sh$
+
+# Version control
+^github\.com$
+^.*\.github\.com$
+^raw\.githubusercontent\.com$
+^pkg-containers\.githubusercontent\.com$
+^release-assets\.githubusercontent\.com$
+^gitlab\.com$
+^.*\.gitlab\.com$
+^bitbucket\.org$
+^.*\.bitbucket\.org$
+
+# Docker/Container registries
+^.*\.docker\.io$
+^ghcr\.io$
+^.*\.ghcr\.io$
+^gcr\.io$
+^.*\.gcr\.io$
+^quay\.io$
+^.*\.quay\.io$
+
+# Common development tools
+^code\.visualstudio\.com$
+^.*\.visualstudio\.com$
+^marketplace\.visualstudio\.com$
+
+# AI services
+^api\.portkey\.ai$
+
+^play\.googleapis\.com$
+^oauth2\.googleapis\.com$
+^cloudcode-pa\.googleapis\.com$
