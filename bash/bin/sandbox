@@ -4,6 +4,8 @@ set -euo pipefail
 SSH_CONFIG_DIR="$HOME/.ssh/config.d"
 BACKEND="container"
 AI_BOOTSTRAP=""
+# shellcheck disable=SC2034
+SANDBOX_CACHE_BASE="$HOME/.cache/sandbox"
 
 validate_and_init_backend() {
     case "$BACKEND" in
@@ -48,7 +50,6 @@ setup_ssh_alias() {
     local name="$1" port="$2"
     if [[ -d "$SSH_CONFIG_DIR" ]]; then
         local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
-        # create file with restrictive permissions
         (umask 0077; touch "$config_file")
         cat > "$config_file" <<EOF
         Host $name
@@ -65,6 +66,26 @@ is_ssh_alias_setup() {
     local name="$1"
     local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
     [[ -f "$config_file" ]]
+}
+
+get_ssh_agent_keys() {
+    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
+        ssh-add -L | base64 -w0
+        echo "Injecting SSH pub keys from agent" >&2
+    else
+        echo ""
+    fi
+}
+
+get_ssh_port_or_fail() {
+    local name="$1"
+    local port
+    port="$(backend_get_ssh_port "$name")"
+    if [[ -z "$port" ]]; then
+        echo "Error: Could not determine SSH port" >&2
+        exit 1
+    fi
+    echo "$port"
 }
 
 backend_is_running() {
@@ -222,16 +243,11 @@ cmd_info() {
     name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(backend_get_ssh_port "$name")"
+    port="$(get_ssh_port_or_fail "$name")"
 
     echo "Sandbox: $name"
     echo "Backend: $BACKEND"
     echo "Workspace: $PWD"
-
-    if [[ -z "$port" ]]; then
-        echo "Error: Could not determine SSH port" >&2
-        exit 1
-    fi
 
     if is_ssh_alias_setup "$name"; then
         echo ""
@@ -273,12 +289,7 @@ cmd_idea() {
     name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(backend_get_ssh_port "$name")"
-
-    if [[ -z "$port" ]]; then
-        echo "Error: Could not determine SSH port" >&2
-        exit 1
-    fi
+    port="$(get_ssh_port_or_fail "$name")"
 
     # https://www.jetbrains.com/help/toolbox-app/gettings-started-with-ssh.html
     if is_ssh_alias_setup "$name"; then
@@ -297,12 +308,7 @@ cmd_code() {
     name="$(sandbox_name)"
     ensure_sandbox "$name"
     local port
-    port="$(backend_get_ssh_port "$name")"
-
-    if [[ -z "$port" ]]; then
-        echo "Error: Could not determine SSH port" >&2
-        exit 1
-    fi
+    port="$(get_ssh_port_or_fail "$name")"
 
     # https://code.visualstudio.com/docs/remote/troubleshooting#_connect-to-a-remote-host-from-the-terminal
     if is_ssh_alias_setup "$name"; then
@@ -401,9 +407,9 @@ main() {
         local detected
         if detected=$(detect_running_backend); then
             BACKEND="$detected"
+            validate_and_init_backend
         fi
     fi
-    validate_and_init_backend
 
     local cmd="${1:-}"
 

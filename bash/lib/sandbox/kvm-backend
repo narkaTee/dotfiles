@@ -3,18 +3,18 @@
 
 KVM_IMAGE_NAME="ghcr.io/narkatee/sandbox-kvm-image"
 KVM_IMAGE_TAG="latest"
-SANDBOX_CACHE="$HOME/.cache/dotfiles/kvm-sandbox"
 BASE_DISK_ZST="debian-13-nocloud-amd64-custom.qcow2.zst"
 BASE_DISK="debian-13-nocloud-amd64-custom.qcow2"
-DISK_IMAGE_ZST="$SANDBOX_CACHE/$BASE_DISK_ZST"
-DISK_IMAGE="$SANDBOX_CACHE/$BASE_DISK"
-KERNEL_EXTRACT="$SANDBOX_CACHE/vmlinuz"
-INITRD_EXTRACT="$SANDBOX_CACHE/initrd"
-SANDBOX_RUN_DIR="${HOME}/.cache/dotfiles/kvm-sandbox/run"
+KVM_CACHE="$SANDBOX_CACHE_BASE/kvm-cache"
+DISK_IMAGE_ZST="$KVM_CACHE/$BASE_DISK_ZST"
+DISK_IMAGE="$KVM_CACHE/$BASE_DISK"
+KERNEL_EXTRACT="$KVM_CACHE/vmlinuz"
+INITRD_EXTRACT="$KVM_CACHE/initrd"
+KVM_BASE_DIR="$SANDBOX_CACHE_BASE/kvm-vms"
 
 kvm_state_dir() {
     local name="$1"
-    echo "$SANDBOX_RUN_DIR/$name"
+    echo "$KVM_BASE_DIR/$name"
 }
 
 kvm_console_socket() {
@@ -76,7 +76,7 @@ allocate_ssh_port() {
 fetch_image() {
     # run in a subshell to contain directory change.
     (
-        cd "$SANDBOX_CACHE"
+        cd "$KVM_CACHE"
 
         if oras pull "$KVM_IMAGE_NAME:$KVM_IMAGE_TAG" 2>&1; then
             echo "decompressing image..."
@@ -108,7 +108,7 @@ ensure_kernel() {
 }
 
 ensure_kvm_image() {
-    mkdir -p "$SANDBOX_CACHE"
+    mkdir -p "$KVM_CACHE"
 
     if ! command -v oras >/dev/null 2>&1; then
         echo "Error: oras not installed (required for KVM image pull)" >&2
@@ -168,11 +168,8 @@ start_kvm_sandbox() {
     echo "$ssh_port" > "$port_file"
     echo "$workspace" > "$workspace_file"
 
-    local ssh_keys=""
-    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
-        ssh_keys=$(ssh-add -L | base64 -w0)
-        echo "Injecting SSH pub keys from agent"
-    fi
+    local ssh_keys
+    ssh_keys=$(get_ssh_agent_keys)
 
     local qemu_args=(
         -enable-kvm
@@ -202,6 +199,7 @@ start_kvm_sandbox() {
         -rtc "base=utc,clock=vm"
         -daemonize
         -pidfile "$pid_file"
+        -fw_cfg "name=opt/com.sandbox/hostname,string=$name"
     )
 
     # Add SSH keys as fw_cfg if available
@@ -307,11 +305,11 @@ stop_kvm_sandbox() {
 }
 
 stop_all_kvm_sandboxes() {
-    if [[ ! -d "$SANDBOX_RUN_DIR" ]]; then
+    if [[ ! -d "$KVM_BASE_DIR" ]]; then
         return
     fi
 
-    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+    for state_dir in "$KVM_BASE_DIR"/sandbox-*; do
         if [[ ! -d "$state_dir" ]]; then
             continue
         fi
@@ -328,13 +326,13 @@ stop_all_kvm_sandboxes() {
 }
 
 list_kvm_sandboxes() {
-    if [[ ! -d "$SANDBOX_RUN_DIR" ]]; then
+    if [[ ! -d "$KVM_BASE_DIR" ]]; then
         echo "No sandboxes running"
         return
     fi
 
     local found=false
-    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+    for state_dir in "$KVM_BASE_DIR"/sandbox-*; do
         if [[ ! -d "$state_dir" ]]; then
             continue
         fi
@@ -350,7 +348,7 @@ list_kvm_sandboxes() {
 
     printf "%-30s %-15s %-10s\n" "NAME" "STATUS" "SSH_PORT"
 
-    for state_dir in "$SANDBOX_RUN_DIR"/sandbox-*; do
+    for state_dir in "$KVM_BASE_DIR"/sandbox-*; do
         if [[ ! -d "$state_dir" ]]; then
             continue
         fi

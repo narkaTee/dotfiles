@@ -64,11 +64,8 @@ start_container_sandbox() {
 
     echo "Starting sandbox: $name"
 
-    local ssh_keys=""
-    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
-        ssh_keys=$(ssh-add -L | base64 -w0)
-        echo "Injecting SSH pub keys from agent"
-    fi
+    local ssh_keys
+    ssh_keys=$(get_ssh_agent_keys)
 
     local run_args=(
         -d
