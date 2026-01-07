@@ -1,6 +1,8 @@
 # shellcheck shell=bash
 # vim: ft=bash
 
+source "$HOME/.config/lib/bash/prompt-patcher/lib.bash"
+
 ensure_know_agent() {
     case "${1:-}" in
         claude|gemini|opencode) ;;
@@ -11,8 +13,29 @@ ensure_know_agent() {
     esac
 }
 
+patch_prompt_file() {
+    local prompt_file="$1"
+    local sandbox_name="${2:-}"
+
+    local blocks=()
+    [[ "${BACKEND:-}" == "container" ]] && blocks+=("sandbox-container")
+    [[ "${BACKEND:-}" == "kvm" ]] && blocks+=("sandbox-kvm")
+    [[ "${PROXY:-false}" == "true" ]] && blocks+=("proxy-restrictions")
+
+    touch "$prompt_file"
+
+    # Get allowlist path if proxy is enabled
+    local allowlist_path=""
+    if [[ "${PROXY:-false}" == "true" ]]; then
+        allowlist_path="$(proxy_allowlist_path "$sandbox_name")"
+    fi
+
+    replace_all_prompt_blocks "$prompt_file" "$allowlist_path" "${blocks[@]}"
+}
+
 build_claude_config() {
     local tmp_target="$1/.claude"
+    local sandbox_name="$2"
     local source="$HOME/.claude"
     mkdir -p "$tmp_target"
 
@@ -31,10 +54,14 @@ build_claude_config() {
   "hasCompletedOnboarding": true
 }
 EOF
+
+    # I might copy in the original file if it exists but I don't have one.
+    patch_prompt_file "$tmp_target/CLAUDE.md" "$sandbox_name"
 }
 
 build_gemini_config() {
     local tmp_target="$1/.gemini"
+    local sandbox_name="$2"
     local source="$HOME/.gemini"
     mkdir -p "$tmp_target"
 
@@ -42,10 +69,13 @@ build_gemini_config() {
     # feels a bit strange, no idea how a compromised token might be revoked.
     # maybe we'll just go through the setup again for now until I know how tokens can be revoked.
     #cp "$source/oauth_creds.json" "$tmp_target"
+
+    patch_prompt_file "$tmp_target/GEMINI.md" "$sandbox_name"
 }
 
 build_opencode_config() {
     local tmp_target="$1/.config/opencode"
+    local sandbox_name="$2"
     local source="$HOME/.config/opencode"
     mkdir -p "$tmp_target"
 
@@ -56,6 +86,8 @@ build_opencode_config() {
     elif [[ -f "$opencode_optpl" ]]; then
         optpl opencode > "$tmp_target/opencode.jsonc"
     fi
+
+    patch_prompt_file "$tmp_target/AGENT.md" "$sandbox_name"
 }
 
 bootstrap_ai() {
@@ -97,15 +129,15 @@ bootstrap_ai() {
 
     case "$agent" in
         claude)
-            build_claude_config "$temp"
+            build_claude_config "$temp" "$name"
             npm_package="@anthropic-ai/claude-code"
             ;;
         gemini)
-            build_gemini_config "$temp"
+            build_gemini_config "$temp" "$name"
             npm_package="@google/gemini-cli"
             ;;
         opencode)
-            build_opencode_config "$temp"
+            build_opencode_config "$temp" "$name"
             npm_package="opencode-ai"
             ;;
         *)
