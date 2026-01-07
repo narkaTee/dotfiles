@@ -55,6 +55,12 @@ n_update() {
             mkdir -p "$N_PREFIX"
             git clone https://github.com/tj/n.git "$N_PREFIX/repo" || exit
         fi
+        if [ -z "$__n_latest_version" ]; then
+            # I have seent he curl command fail during sandbox image builds. I don't know why
+            # So far it only happened once, but a ~30 Minute build that fails wastes time.
+            # Addtionally to the retries I will hardcode a version to fall back to
+            __n_latest_version="v10.2.0"
+        fi
         (cd "$N_PREFIX/repo" || exit
         git checkout -f "$__n_latest_version")
         export PATH="$PATH:$HOME/.n-vm/repo/bin:$HOME/.n-vm/bin"
@@ -74,7 +80,7 @@ if [ -d "$HOME/.config/boxed" ] && hash bwrap 2>/dev/null; then
     alias pnpx="boxed npm -- pnpx"
     alias yarn="boxed npm -- yarn"
     alias yarnpkg="boxed npm -- yarnpkg"
-    alias aj="boxed ai-jail --"
+    alias aj="boxed ai-jail"
 fi
 
 # Setup EDITOR and VISUAL
