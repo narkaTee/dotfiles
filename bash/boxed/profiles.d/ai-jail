@@ -63,6 +63,24 @@ if [ -n "$tool_config_dir" ]; then
             args+=(--bind "$file_overlay" "$HOME/.claude.json")
             ;;
     esac
+
+    source "$HOME/.config/lib/bash/prompt-patcher/lib.bash"
+
+    prompt_filename="$(get_prompt_filename "$tool_name")"
+    overlay_prompt_file="$overlay_upper/$prompt_filename"
+
+    # Initialize file if needed - copy from lower if exists
+    if [[ ! -f "$overlay_prompt_file" ]]; then
+        lower_prompt_file="$HOME/$tool_config_dir/$prompt_filename"
+        if [[ -f "$lower_prompt_file" ]]; then
+            cp "$lower_prompt_file" "$overlay_prompt_file"
+        else
+            touch "$overlay_prompt_file"
+        fi
+    fi
+
+    # Patch with blocks (removes obsolete blocks automatically)
+    replace_all_prompt_blocks "$overlay_prompt_file" "" "sandbox-bwrap" "git-readonly"
 fi
 
 add_env 'EDITOR'
