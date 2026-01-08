@@ -237,6 +237,12 @@ export https_proxy=http://10.0.2.100:8888"
         )
     else
         qemu_args+=(
+            # This network setup gives the guest access to all services running on the host system listening on localhost or *!
+            # Why? Because that is the default behaviour of slirp4netns/libslirp, this is what qemu uses to setup userspace networking.
+            # There is a --disable-host-loopback option on slirp4netns so libslirp support blocking access to localhost
+            # but qemu does not yet offer an option for this:
+            # https://gitlab.com/qemu-project/qemu/-/issues/2688
+            # Another alternative to try would be "passt" network mode but this is so new in qemu that it's not available on debian.
             -netdev "user,id=net0,hostfwd=tcp::${ssh_port}-:2222"
         )
     fi

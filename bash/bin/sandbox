@@ -355,7 +355,10 @@ Usage:
 
 Global Flags:
     --kvm           Use KVM backend
+                    Stronger Isolation, sudo and root access inside sandbox
+                    BUT: without the proxy option the vm has access to all port open on the host...
     --container     Use container backend
+                    Container Isolation, no root access
     --proxy         Force all communication to go throug a restrictive proxy
     --agent <name>  Bootstrap an AI agent in the sandbox with credentials from the host
                     Supported Agents: claude, gemini, opencode
