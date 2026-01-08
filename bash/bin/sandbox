@@ -66,6 +66,18 @@ EOF
     fi
 }
 
+remove_ssh_alias() {
+    local name="$1"
+    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+    rm "$config_file"
+}
+
+remove_all_ssh_aliases() {
+    for alias in "$SSH_CONFIG_DIR"/alias-sandbox-*; do
+        rm "$alias"
+    done
+}
+
 is_ssh_alias_setup() {
     local name="$1"
     local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
@@ -228,6 +240,7 @@ cmd_stop() {
 
         stop_all_container_sandboxes
         stop_all_kvm_sandboxes
+        remove_all_ssh_aliases
 
         echo "Done"
     else
@@ -237,6 +250,7 @@ cmd_stop() {
         echo "Stopping sandbox: $name"
         if backend_is_running "$name"; then
             backend_stop "$name"
+            remove_ssh_alias "$name"
         fi
         echo "Done"
     fi
