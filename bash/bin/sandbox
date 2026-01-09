@@ -330,7 +330,7 @@ cmd_code() {
 
     # https://code.visualstudio.com/docs/remote/troubleshooting#_connect-to-a-remote-host-from-the-terminal
     if is_ssh_alias_setup "$name"; then
-        local remote="ssh-remote+$name"
+        local remote="ssh-remote+${name}/home/dev/workspace"
     else
         local remote="ssh-remote+dev@localhost:${port}/home/dev/workspace"
     fi
@@ -351,7 +351,7 @@ cmd_help() {
 sandbox - Containerized development sandbox
 
 Usage:
-    sandbox [--kvm|--container] <command>
+    sandbox [--kvm|--container] [flags] <command>
 
 Global Flags:
     --kvm           Use KVM backend
