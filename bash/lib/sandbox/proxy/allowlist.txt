@@ -38,9 +38,23 @@
 ^.*\.visualstudio\.com$
 ^marketplace\.visualstudio\.com$
 
-# AI services
+# AI Tools & Services
 ^api\.portkey\.ai$
 
+# Gemini cli
 ^play\.googleapis\.com$
 ^oauth2\.googleapis\.com$
+# Claude Code
 ^cloudcode-pa\.googleapis\.com$
+# Antigravity
+^.*\.gvt1\.com$
+
+# minikube & k8s
+^registry\.k8s\.io$
+^dl\.k8s\.io$
+^cdn\.dl\.k8s\.io$
+^europe-west3-docker\.pkg\.dev$
+^storage\.googleapis\.com$
+^prod-registry-k8s-io-eu-central-1\.s3\.dualstack\.eu-central-1\.amazonaws\.com$
+^docker-images-prod\.6aa30f8b08e16409b46e0173d6de2f56\.r2\.cloudflarestorage\.com$
+^api\.individual\.githubcopilot\.com$
