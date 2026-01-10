@@ -55,9 +55,11 @@ setup_ssh_alias() {
     if [[ -d "$SSH_CONFIG_DIR" ]]; then
         local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
         (umask 0077; touch "$config_file")
+        # can't use localhost otherwise the toolbox app thinks it cannot connect when using kvm
+        # https://youtrack.jetbrains.com/issue/TBX-17221/SSH-connection-verification-false-negative
         cat > "$config_file" <<EOF
         Host $name
-            HostName localhost
+            HostName 127.0.0.1
             Port $port
             User dev
             StrictHostKeyChecking no

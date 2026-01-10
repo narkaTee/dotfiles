@@ -37,6 +37,7 @@
 ^code\.visualstudio\.com$
 ^.*\.visualstudio\.com$
 ^marketplace\.visualstudio\.com$
+^.*\.jetbrains\.com$
 
 # AI Tools & Services
 ^api\.portkey\.ai$
