@@ -216,13 +216,10 @@ start_kvm_sandbox() {
             exit 1
         fi
 
-        local proxy_env="export HTTP_PROXY=http://10.0.2.100:8888
-export HTTPS_PROXY=http://10.0.2.100:8888
-export http_proxy=http://10.0.2.100:8888
-export https_proxy=http://10.0.2.100:8888"
+        local proxy_url="http://10.0.2.100:8888"
 
         qemu_args+=(
-            -fw_cfg "name=opt/com.sandbox/proxy_env,string=$proxy_env"
+            -fw_cfg "name=opt/com.sandbox/proxy,string=$proxy_url"
             # yes calling netcat for every connection seems a bit strange...
             # for some reason when running with userspace networking the connection handling is
             # strange (at least with the versions on debian trixie)
