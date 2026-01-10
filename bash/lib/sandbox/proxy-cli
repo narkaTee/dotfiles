@@ -36,8 +36,12 @@ cmd_proxy_blocked() {
     local name
     name="$(sandbox_name)"
 
-    echo "Blocked domains for $name:"
-    get_blocked_domains "$name"
+    if [[ "${1:-}" = "-w" ]]; then
+        watch --int 3 --diff "sandbox proxy blocked"
+    else
+        echo "Blocked domains for $name:"
+        get_blocked_domains "$name"
+    fi
 }
 
 cmd_proxy_allow() {
@@ -102,7 +106,8 @@ Usage:
 Commands:
     info          Show proxy container status and allowlist info
     logs            Show proxy logs for current sandbox
-    blocked         Show blocked domains with attempt counts
+    blocked [-w]    Show blocked domains with attempt counts.
+                    Watch mode with: -w
     allow <domain>  Add domain to allowlist
     remove <domain> Remove domain from allowlist
     reset           Reset the allow list to the default
@@ -122,7 +127,7 @@ cmd_proxy() {
     case "$subcmd" in
         info)           cmd_proxy_info ;;
         logs)           cmd_proxy_logs ;;
-        blocked)        cmd_proxy_blocked ;;
+        blocked)        shift; cmd_proxy_blocked "$@" ;;
         allow)          shift; cmd_proxy_allow "$@" ;;
         remove|rm)      shift; cmd_proxy_remove "$@" ;;
         reset)          cmd_proxy_reset ;;
