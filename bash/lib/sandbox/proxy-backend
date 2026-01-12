@@ -207,6 +207,10 @@ list_proxy_containers() {
 
 get_proxy_logs() {
     local sandbox_name="$1"
+    local follow=false
+    if [[ "${2:-}" = '-f' ]];then
+        follow=true
+    fi
     local proxy_name="sandbox-proxy-$sandbox_name"
 
     if ! $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
@@ -214,7 +218,11 @@ get_proxy_logs() {
     fi
 
     if $CONTAINER_ENGINE ps -q -f "name=^${proxy_name}$" | grep -q .; then
-        $CONTAINER_ENGINE exec "$proxy_name" cat /home/tinyproxy/tinyproxy.log 2>/dev/null || echo "No logs available"
+        if [[ $follow = true ]]; then
+            $CONTAINER_ENGINE exec "$proxy_name" tail -f /home/tinyproxy/tinyproxy.log 2>/dev/null || echo "No logs available"
+        else
+            $CONTAINER_ENGINE exec "$proxy_name" cat /home/tinyproxy/tinyproxy.log 2>/dev/null || echo "No logs available"
+        fi
     else
         echo "Proxy not running for: $sandbox_name"
         return 1
