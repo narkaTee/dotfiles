@@ -239,6 +239,12 @@ task :install_vim_plugins do
   })
 end
 
+task :nvim do
+    Cfg.directory "#{HOME}/.config/nvim/" do
+        source "nvim/"
+    end
+end
+
 task :k9s do
   Cfg.directory "#{HOME}/.config/k9s/plugins" do
     source "k9s/plugins"
@@ -258,13 +264,15 @@ task :macos do
   Cfg.file("0644", src: "macos/karabiner.json", dst: "#{HOME}/.config/karabiner/karabiner.json")
 end
 
-task :vscode do
+task :vscode => :nvim do
   next if ! Dir.exist?("#{HOME}/.config/Code/User/")
   Cfg.file("0644", src: "vscode/settings.json", dst: "#{HOME}/.config/Code/User/settings.json")
+  Cfg.file("0644", src: "vscode/keybindings.json", dst: "#{HOME}/.config/Code/User/keybindings.json")
   if has_command("code")
     [
+      'ms-vscode-remote.remote-ssh',
       'ms-azuretools.vscode-containers',
-      'vscodevim.vim',
+      'asvetliakov.vscode-neovim'
     ].each do |ext|
       sh "code --install-extension #{ext}"
     end
