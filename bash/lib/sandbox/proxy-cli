@@ -29,7 +29,7 @@ cmd_proxy_logs() {
     name="$(sandbox_name)"
 
     echo "Proxy logs for $name:"
-    get_proxy_logs "$name"
+    get_proxy_logs "$name" "$@"
 }
 
 cmd_proxy_blocked() {
@@ -126,7 +126,7 @@ cmd_proxy() {
 
     case "$subcmd" in
         info)           cmd_proxy_info ;;
-        logs)           cmd_proxy_logs ;;
+        logs)           shift; cmd_proxy_logs "$@" ;;
         blocked)        shift; cmd_proxy_blocked "$@" ;;
         allow)          shift; cmd_proxy_allow "$@" ;;
         remove|rm)      shift; cmd_proxy_remove "$@" ;;
