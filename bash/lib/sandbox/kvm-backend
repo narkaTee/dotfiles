@@ -192,6 +192,11 @@ start_kvm_sandbox() {
         # mapped prevents the vm root user to write files as root to the directory
         # Even though that would probably fail because qemu runs a nun root user.
         -virtfs "local,path=$workspace,mount_tag=workspace,security_model=mapped,readonly=off"
+        # virtio-rng provides high-quality entropy to guest for crypto operations
+        -object "rng-random,id=rng0,filename=/dev/urandom"
+        -device "virtio-rng,rng=rng0,max-bytes=1024,period=1000"
+        # virtio-balloon enables dynamic memory management
+        -device "virtio-balloon"
         # prevent qemu from starting to the background: elevateprivileges=deny,spawn=deny
         -sandbox "on,obsolete=deny,resourcecontrol=deny"
         -rtc "base=utc,clock=vm"
@@ -250,6 +255,9 @@ start_kvm_sandbox() {
 
     echo "Starting QEMU..."
 
+    local boot_start
+    boot_start=$(date +%s)
+
     # Run QEMU and try to capture any errors. qemu is not very log-happy when running with -daemonize
     # But we can at-least try...
     set +e
@@ -301,6 +309,11 @@ start_kvm_sandbox() {
             exit 1
         fi
     done
+
+    local boot_end
+    boot_end=$(date +%s)
+    local boot_time=$((boot_end - boot_start))
+    echo "VM booted in ${boot_time}s"
 
     # Setup SSH alias
     setup_ssh_alias "$name" "$ssh_port"
