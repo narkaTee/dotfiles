@@ -1,0 +1,29 @@
+# Component Specifications
+
+This directory contains detailed specifications for each component in the dotfiles repository.
+
+## Purpose of These Specs
+
+Feature specs are **interface documents for human engineers to guide AI agents** during implementation. They provide clear descriptions, architectural constraints, critical guardrails, and success criteria - NOT exhaustive implementation documentation.
+
+## Documentation Guidelines
+
+When working with features:
+
+- **Writing a new feature spec?** → Read [how-to-write-specs.md](how-to-write-specs.md)
+- **Planning feature implementation?** → Read [how-to-write-implementation-plans.md](how-to-write-implementation-plans.md)
+
+## Quick Reference
+
+| Document Type | Purpose | When to Create | Length |
+|--------------|---------|----------------|--------|
+| **Feature Spec** | Define WHAT and WHY | Before implementation starts | 1-2 pages |
+| **Implementation Plan** | Define HOW and WHEN | At start of implementation | As needed |
+
+## Contributing
+
+When adding a new features or specs:
+1. Create or update a spec using the guidelines in [how-to-write-specs.md](how-to-write-specs.md)
+2. Add an entry to the Components table above
+3. Create an implementation plan if needed (see [how-to-write-implementation-plans.md](how-to-write-implementation-plans.md))
+4. Stop. Implementation is triggered in a new session
