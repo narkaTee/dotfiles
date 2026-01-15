@@ -1,0 +1,89 @@
+# shellcheck shell=bash
+# vim: ft=bash
+
+SANDBOX_CACHE_BASE="${SANDBOX_CACHE_BASE:-$HOME/.cache/sandbox}"
+SSH_CONFIG_DIR="${SSH_CONFIG_DIR:-$HOME/.ssh/config.d}"
+
+backend_state_dir() {
+    local backend="$1"
+    local name="$2"
+    echo "$SANDBOX_CACHE_BASE/${backend}-vms/$name"
+}
+
+ensure_backend_state_dir() {
+    local backend="$1"
+    local name="$2"
+    local state_dir
+    state_dir="$(backend_state_dir "$backend" "$name")"
+    mkdir -p "$state_dir"
+    chmod 700 "$state_dir"
+}
+
+# Blocks until SSH connection succeeds or timeout reached (default: 30s)
+wait_for_ssh() {
+    local host="$1"
+    local port="$2"
+    local user="$3"
+    local max_wait="${4:-30}"
+    local interval=2
+    local waited=0
+
+    while ! ssh -o "ConnectTimeout=$interval" \
+               -o StrictHostKeyChecking=no \
+               -o UserKnownHostsFile=/dev/null \
+               -o BatchMode=yes \
+               -p "$port" "${user}@${host}" true 2>/dev/null; do
+        sleep "$interval"
+        waited=$((waited + interval))
+        if [[ $waited -ge $max_wait ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+setup_ssh_alias() {
+    local name="$1"
+    local port="$2"
+    local host="${3:-127.0.0.1}"
+
+    if [[ -d "$SSH_CONFIG_DIR" ]]; then
+        local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+        (umask 0077; touch "$config_file")
+        cat > "$config_file" <<EOF
+Host $name
+    HostName $host
+    Port $port
+    User dev
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+    fi
+}
+
+remove_ssh_alias() {
+    local name="$1"
+    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+    rm -f "$config_file"
+}
+
+remove_all_ssh_aliases() {
+    for alias_file in "$SSH_CONFIG_DIR"/alias-sandbox-*; do
+        [[ -e "$alias_file" ]] && rm -f "$alias_file"
+    done
+}
+
+is_ssh_alias_setup() {
+    local name="$1"
+    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
+    [[ -f "$config_file" ]]
+}
+
+get_ssh_agent_keys() {
+    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
+        ssh-add -L | base64 -w0
+        echo "Injecting SSH pub keys from agent" >&2
+    else
+        echo ""
+    fi
+}
