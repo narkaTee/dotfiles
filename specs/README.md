@@ -2,6 +2,21 @@
 
 This directory contains detailed specifications for each component in the dotfiles repository.
 
+## Dotfile Components
+
+| Component | Spec File | Code Location | Description |
+|-----------|-----------|---------------|-------------|
+| Rakefile DSL | [rakefile-dsl.md](rakefile-dsl.md) | `lib/`, `Rakefile` | Ruby-based build system with custom DSL for managing configuration files |
+
+## Development Tools
+
+| Tool | Spec File | Code Location | Description |
+|------|-----------|---------------|-------------|
+| **Sandbox** | **[sandbox.md](sandbox.md)** | `bash/bin/sandbox` | **Backend-independent sandbox orchestration and IDE integration** |
+| ↳ Container Backend | [sandbox-container.md](sandbox-container.md) | `bash/lib/sandbox/container-backend` | Docker/Podman-based sandboxes with container isolation |
+| ↳ KVM Backend | [sandbox-kvm.md](sandbox-kvm.md) | `bash/lib/sandbox/kvm-backend` | QEMU/KVM-based VM sandboxes with full root access |
+| ↳ Proxy Backend | [sandbox-proxy.md](sandbox-proxy.md) | `bash/lib/sandbox/proxy-backend`, `bash/lib/sandbox/proxy-cli` | Restrictive proxy with domain allowlist |
+
 ## Purpose of These Specs
 
 Feature specs are **interface documents for human engineers to guide AI agents** during implementation. They provide clear descriptions, architectural constraints, critical guardrails, and success criteria - NOT exhaustive implementation documentation.
