@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SSH_CONFIG_DIR="$HOME/.ssh/config.d"
+source "$HOME/.config/lib/bash/sandbox/common"
+
 BACKEND="container"
 AI_BOOTSTRAP=""
 # shellcheck disable=SC2034
-SANDBOX_CACHE_BASE="$HOME/.cache/sandbox"
-# shellcheck disable=SC2034
 PROXY=false
+# shellcheck disable=SC2034
+SYNC=false
 
 validate_and_init_backend() {
     case "$BACKEND" in
@@ -28,10 +29,14 @@ validate_and_init_backend() {
                 exit 1
             fi
             ;;
+        hcloud)
+            # Prerequisites validated in hcloud backend start function
+            ;;
     esac
 
     source "$HOME/.config/lib/bash/sandbox/container-backend"
     source "$HOME/.config/lib/bash/sandbox/kvm-backend"
+    source "$HOME/.config/lib/bash/sandbox/hcloud-backend"
     source "$HOME/.config/lib/bash/sandbox/proxy-backend"
     source "$HOME/.config/lib/bash/sandbox/proxy-cli"
 }
@@ -47,51 +52,6 @@ ensure_sandbox() {
     if ! backend_is_running "$name"; then
         echo "No sandbox running for current directory" >&2
         exit 1
-    fi
-}
-
-setup_ssh_alias() {
-    local name="$1" port="$2"
-    if [[ -d "$SSH_CONFIG_DIR" ]]; then
-        local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
-        (umask 0077; touch "$config_file")
-        # can't use localhost otherwise the toolbox app thinks it cannot connect when using kvm
-        # https://youtrack.jetbrains.com/issue/TBX-17221/SSH-connection-verification-false-negative
-        cat > "$config_file" <<EOF
-        Host $name
-            HostName 127.0.0.1
-            Port $port
-            User dev
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-EOF
-    fi
-}
-
-remove_ssh_alias() {
-    local name="$1"
-    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
-    rm "$config_file"
-}
-
-remove_all_ssh_aliases() {
-    for alias in "$SSH_CONFIG_DIR"/alias-sandbox-*; do
-        rm "$alias"
-    done
-}
-
-is_ssh_alias_setup() {
-    local name="$1"
-    local config_file="$SSH_CONFIG_DIR/alias-$name.conf"
-    [[ -f "$config_file" ]]
-}
-
-get_ssh_agent_keys() {
-    if command -v ssh-add >/dev/null 2>&1 && ssh-add -L >/dev/null 2>&1; then
-        ssh-add -L | base64 -w0
-        echo "Injecting SSH pub keys from agent" >&2
-    else
-        echo ""
     fi
 }
 
@@ -111,6 +71,7 @@ backend_is_running() {
     case "$BACKEND" in
         container) is_container_running "$name" ;;
         kvm) is_kvm_running "$name" ;;
+        hcloud) is_hcloud_running "$name" ;;
     esac
 }
 
@@ -119,6 +80,7 @@ backend_get_ssh_port() {
     case "$BACKEND" in
         container) get_container_ssh_port "$name" ;;
         kvm) get_kvm_ssh_port "$name" ;;
+        hcloud) get_hcloud_ssh_port "$name" ;;
     esac
 }
 
@@ -127,6 +89,7 @@ backend_start() {
     case "$BACKEND" in
         container) start_container_sandbox "$name" ;;
         kvm) start_kvm_sandbox "$name" ;;
+        hcloud) start_hcloud_sandbox "$name" ;;
     esac
 }
 
@@ -135,6 +98,7 @@ backend_stop() {
     case "$BACKEND" in
         container) stop_container_sandbox "$name" ;;
         kvm) stop_kvm_sandbox "$name" ;;
+        hcloud) stop_hcloud_sandbox "$name" ;;
     esac
 }
 
@@ -155,6 +119,25 @@ backend_enter() {
                 -o StrictHostKeyChecking=no \
                 -p "$port" dev@localhost
             ;;
+        hcloud)
+            if is_ssh_alias_setup "$name"; then
+                exec ssh "$name"
+            else
+                local state_dir
+                state_dir="$(hcloud_state_dir "$name")"
+                local ip_file="$state_dir/server.ip"
+                if [[ -f "$ip_file" ]]; then
+                    local server_ip
+                    server_ip="$(cat "$ip_file")"
+                    exec ssh -o UserKnownHostsFile=/dev/null \
+                        -o StrictHostKeyChecking=no \
+                        "dev@$server_ip"
+                else
+                    echo "Error: Could not determine server IP" >&2
+                    exit 1
+                fi
+            fi
+            ;;
     esac
 }
 
@@ -164,6 +147,7 @@ detect_running_backend() {
 
     local container_running=false
     local kvm_running=false
+    local hcloud_running=false
 
     if is_container_running "$sandbox_name"; then
         container_running=true
@@ -173,14 +157,26 @@ detect_running_backend() {
         kvm_running=true
     fi
 
-    if $container_running && $kvm_running; then
-        echo "ERROR: Both backends running" >&2
+    if is_hcloud_running "$sandbox_name"; then
+        hcloud_running=true
+    fi
+
+    local running_count=0
+    $container_running && running_count=$((running_count + 1))
+    $kvm_running && running_count=$((running_count + 1))
+    $hcloud_running && running_count=$((running_count + 1))
+
+    if [[ $running_count -gt 1 ]]; then
+        echo "ERROR: Multiple backends running" >&2
         return 2
     elif $container_running; then
         echo "container"
         return 0
     elif $kvm_running; then
         echo "kvm"
+        return 0
+    elif $hcloud_running; then
+        echo "hcloud"
         return 0
     else
         return 1
@@ -228,6 +224,10 @@ cmd_list() {
     echo ""
     echo "Running sandboxes (kvm backend):"
     list_kvm_sandboxes
+
+    echo ""
+    echo "Running sandboxes (hcloud backend):"
+    list_hcloud_sandboxes
 }
 
 cmd_stop() {
@@ -238,10 +238,11 @@ cmd_stop() {
     fi
 
     if $stop_all; then
-        echo "Stopping all sandboxes (both backends)..."
+        echo "Stopping all sandboxes (all backends)..."
 
         stop_all_container_sandboxes
         stop_all_kvm_sandboxes
+        stop_all_hcloud_sandboxes
         remove_all_ssh_aliases
 
         echo "Done"
@@ -353,7 +354,7 @@ cmd_help() {
 sandbox - Containerized development sandbox
 
 Usage:
-    sandbox [--kvm|--container] [flags] <command>
+    sandbox [--kvm|--container|--hcloud] [flags] <command>
 
 Global Flags:
     --kvm           Use KVM backend
@@ -361,6 +362,11 @@ Global Flags:
                     BUT: without the proxy option the vm has access to all port open on the host...
     --container     Use container backend
                     Container Isolation, no root access
+    --hcloud        Use Hetzner Cloud backend
+                    Cloud-based VMs with ephemeral lifecycle (destroyed on stop)
+                    Requires hcloud CLI and authentication
+    --sync          Sync workspace to VM (hcloud backend only)
+                    Runs rsync from current directory to /home/dev/workspace
     --proxy         Force all communication to go throug a restrictive proxy
     --agent <name>  Bootstrap an AI agent in the sandbox with credentials from the host
                     Supported Agents: claude, gemini, opencode
@@ -368,7 +374,7 @@ Global Flags:
 Backend Selection:
     The backend is automatically detected based on running sandboxes.
     If no sandbox is running, defaults to container backend.
-    Use --kvm or --container to explicitly select a backend.
+    Use --kvm, --container, or --hcloud to explicitly select a backend.
 
 Commands:
     (none)        Start/enter sandbox for current directory
@@ -377,13 +383,15 @@ Commands:
     proxy         Manage proxy and domain allowlist (see 'proxy help')
     list          List running sandboxes
     stop          Stop sandbox for current directory
-    stop -a       Stop all sandboxes (both backends)
+    stop -a       Stop all sandboxes (all backends)
     info          Show SSH connection details
     help          Show this help
 
 Examples:
     sandbox                   Start/enter (auto-detects backend)
     sandbox --kvm             Start KVM sandbox
+    sandbox --hcloud          Start Hetzner Cloud sandbox
+    sandbox --hcloud --sync   Start Hetzner Cloud sandbox with workspace sync
     sandbox code              Open VS Code (auto-detects backend)
     sandbox info              Show info (auto-detects backend)
     sandbox stop -a           Stop all sandboxes
@@ -408,9 +416,19 @@ main() {
                 backend_explicitly_set=true
                 shift
                 ;;
+            --hcloud)
+                BACKEND="hcloud"
+                backend_explicitly_set=true
+                shift
+                ;;
             --proxy)
                 # shellcheck disable=SC2034
                 PROXY=true
+                shift
+                ;;
+            --sync)
+                # shellcheck disable=SC2034
+                SYNC=true
                 shift
                 ;;
             --agent)

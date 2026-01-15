@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 # vim: ft=bash
+#
+# KVM backend for sandbox
 
 KVM_IMAGE_NAME="ghcr.io/narkatee/sandbox-kvm-image"
 KVM_IMAGE_TAG="latest"
@@ -14,7 +16,7 @@ KVM_BASE_DIR="$SANDBOX_CACHE_BASE/kvm-vms"
 
 kvm_state_dir() {
     local name="$1"
-    echo "$KVM_BASE_DIR/$name"
+    backend_state_dir "kvm" "$name"
 }
 
 kvm_console_socket() {
@@ -24,10 +26,7 @@ kvm_console_socket() {
 
 ensure_state_dir() {
     local name="$1"
-    local state_dir
-    state_dir="$(kvm_state_dir "$name")"
-    mkdir -p "$state_dir"
-    chmod 700 "$state_dir"
+    ensure_backend_state_dir "kvm" "$name"
 }
 
 is_kvm_running() {
@@ -294,21 +293,11 @@ start_kvm_sandbox() {
         exit 1
     fi
 
-    # Wait for VM to be accessible via SSH
     echo "Waiting for VM to boot..."
-    local max_wait=30
-    local waited=0
-    while ! ssh -o ConnectTimeout=1 \
-               -o StrictHostKeyChecking=no \
-               -o UserKnownHostsFile=/dev/null \
-               -p "$ssh_port" dev@localhost true 2>/dev/null; do
-        sleep 1
-        waited=$((waited + 1))
-        if [[ $waited -ge $max_wait ]]; then
-            echo "Error: VM was not reachable via ssh within ${max_wait}s" >&2
-            exit 1
-        fi
-    done
+    if ! wait_for_ssh "localhost" "$ssh_port" "dev" 30; then
+        echo "Error: VM was not reachable via ssh within 30s" >&2
+        exit 1
+    fi
 
     local boot_end
     boot_end=$(date +%s)

@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 # vim: ft=bash
+#
+# Container backend for sandbox
 
 SANDBOX_IMAGE="ghcr.io/narkatee/sandbox-container:latest"
 
