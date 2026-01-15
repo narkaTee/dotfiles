@@ -13,6 +13,7 @@ This directory contains detailed specifications for each component in the dotfil
 | Tool | Spec File | Code Location | Description |
 |------|-----------|---------------|-------------|
 | **Sandbox** | **[sandbox.md](sandbox.md)** | `bash/bin/sandbox` | **Backend-independent sandbox orchestration and IDE integration** |
+| ↳ Common Library | [sandbox-common.md](sandbox-common.md) | `bash/lib/sandbox/common` | Shared utilities for state dirs, SSH wait, SSH aliases. Automatically available to all backends. |
 | ↳ Container Backend | [sandbox-container.md](sandbox-container.md) | `bash/lib/sandbox/container-backend` | Docker/Podman-based sandboxes with container isolation |
 | ↳ KVM Backend | [sandbox-kvm.md](sandbox-kvm.md) | `bash/lib/sandbox/kvm-backend` | QEMU/KVM-based VM sandboxes with full root access |
 | ↳ Hetzner Cloud Backend | [sandbox-hcloud.md](sandbox-hcloud.md) | `bash/lib/sandbox/hcloud-backend` | Hetzner Cloud VMs with ephemeral lifecycle and direct SSH access |

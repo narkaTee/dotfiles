@@ -57,6 +57,7 @@ stop_all_hcloud_sandboxes
 - SSH access via public IP
 - UFW firewall enabled (deny incoming except SSH, allow outgoing)
 - sshguard active for SSH brute-force protection
+- ssh access for root disabled
 
 ## Dependencies
 
@@ -67,15 +68,6 @@ stop_all_hcloud_sandboxes
 - SSH client: For connecting to VMs
 
 ## Configuration
-
-**Cache locations:**
-- State directory: `~/.cache/sandbox/hcloud-vms/<name>/`
-
-**State files:**
-- `server.id` - Hetzner server ID
-- `server.ip` - Public IPv4 address
-- `created.timestamp` - Unix timestamp of creation
-- `use_op` - Flag file indicating op should be used (created during detection)
 
 **1Password CLI integration:**
 - Detection on first hcloud command: Check if `~/.config/op/plugins/used_items/hcloud.json` exists
@@ -99,7 +91,32 @@ stop_all_hcloud_sandboxes
 - Project: From `basename "$PWD"` with non-alphanumeric → underscore
 - Example: `myhost-sandbox-myproject`
 
+## State Management
+
+**Philosophy**: Filesystem state is authoritative for reads; API calls reserved for writes.
+
+**State files** via `backend_state_dir "hcloud"`:
+- `server.id` - Hetzner server ID (presence = VM may exist)
+- `server.ip` - Public IPv4 for SSH connections
+- `created.timestamp` - Unix timestamp of creation
+
+**Read operations** (no API calls):
+- Backend detection, status checks, port queries, listing sandboxes
+- All check filesystem only, assume running if state directory exists
+
+**Write operations** (API calls required):
+- `start_hcloud_sandbox()` - Verify VM doesn't exist, create if needed
+- `stop_hcloud_sandbox()` - Delete VM, cleanup state on success only
+
+**Stale state handling**:
+- VM deleted externally → stop fails, user runs `rm -rf ~/.cache/sandbox/hcloud-vms/<name>/`
+- VM deleted then restarted → start detects conflict, warns user, creates new VM and updates state
+- Failed stop preserves state for retry (avoids lost cost tracking)
+- List may show stale entries - acceptable for non-critical operation
+
 ## Integration Points
+
+**Common library usage** (see [sandbox-common.md](sandbox-common.md)):
 
 **SSH configuration:**
 - Uses host SSH agent keys (injected via cloud-init user-data)

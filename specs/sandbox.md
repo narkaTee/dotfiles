@@ -97,8 +97,10 @@ If `~/.ssh/config.d/` exists:
 ## Integration Points
 
 **Backend implementations:**
+- Common library: [sandbox-common.md](sandbox-common.md)
 - Container backend: [sandbox-container.md](sandbox-container.md)
 - KVM backend: [sandbox-kvm.md](sandbox-kvm.md)
+- Hetzner Cloud backend: [sandbox-hcloud.md](sandbox-hcloud.md)
 - Proxy backend: [sandbox-proxy.md](sandbox-proxy.md)
 
 **SSH agent forwarding:**

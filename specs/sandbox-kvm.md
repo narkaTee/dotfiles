@@ -69,7 +69,7 @@ socat STDIO,raw,echo=0,escape=0x1d UNIX-CONNECT:~/.cache/sandbox/kvm-vms/<name>/
 
 **Cache locations:**
 - Base image cache: `~/.cache/sandbox/kvm-cache/`
-- VM state: `~/.cache/sandbox/kvm-vms/<name>/`
+- VM state: via `backend_state_dir "kvm"` from common library
 
 **VM resources (hardcoded):**
 - Memory: 2GB
@@ -77,6 +77,8 @@ socat STDIO,raw,echo=0,escape=0x1d UNIX-CONNECT:~/.cache/sandbox/kvm-vms/<name>/
 - Disk: Base image size (overlay grows as needed)
 
 ## Integration Points
+
+**Common library usage** (see [sandbox-common.md](sandbox-common.md)):
 
 **Proxy mode integration:**
 When `$PROXY=true`:
