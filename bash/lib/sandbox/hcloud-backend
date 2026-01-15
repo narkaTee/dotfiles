@@ -1,0 +1,379 @@
+# shellcheck shell=bash
+# vim: ft=bash
+#
+# Hetzner Cloud backend for sandbox
+
+HCLOUD_SERVER_TYPE="cx23"  # 2 vCPU, 4GB RAM
+HCLOUD_LOCATION="nbg1"     # Nuremberg datacenter
+HCLOUD_IMAGE="debian-13"
+HCLOUD_BASE_DIR="$SANDBOX_CACHE_BASE/hcloud-vms"
+
+hcloud_state_dir() {
+    local name="$1"
+    backend_state_dir "hcloud" "$name"
+}
+
+ensure_hcloud_state_dir() {
+    local name="$1"
+    ensure_backend_state_dir "hcloud" "$name"
+}
+
+# Detect if 1Password CLI plugin is configured for hcloud
+# Returns 0 if op should be used, 1 otherwise
+should_use_op() {
+    local op_plugin_file="$HOME/.config/op/plugins/used_items/hcloud.json"
+    [[ -f "$op_plugin_file" ]]
+}
+
+# Wrapper for hcloud commands that auto-detects 1Password CLI integration
+# Usage: run_hcloud <args...>
+run_hcloud() {
+    if should_use_op; then
+        op plugin run -- hcloud "$@"
+    else
+        hcloud "$@"
+    fi
+}
+
+get_hcloud_vm_name() {
+    local sandbox_name="$1"
+    local hostname
+    hostname="$(hostname -s)"
+    # Sanitize hostname and sandbox name for DNS compliance
+    hostname="${hostname//[^a-zA-Z0-9-]/-}"
+    local project
+    project="${sandbox_name#sandbox-}"  # Remove sandbox- prefix
+    project="${project//[^a-zA-Z0-9-]/-}"
+    echo "${hostname}-${project}"
+}
+
+# Check if hcloud sandbox is running based on filesystem state only (no API calls)
+# Philosophy: Filesystem state is authoritative for reads
+is_hcloud_running() {
+    local name="$1"
+    local state_dir
+    state_dir="$(hcloud_state_dir "$name")"
+    local id_file="$state_dir/server.id"
+
+    # If state file exists, assume VM is running
+    [[ -f "$id_file" ]]
+}
+
+get_hcloud_ssh_port() {
+    local name="$1"
+
+    if is_hcloud_running "$name"; then
+        echo "22"
+    else
+        echo ""
+    fi
+}
+
+start_hcloud_sandbox() {
+    local name="$1"
+    local workspace="$PWD"
+
+    # Validate prerequisites
+    if ! command -v hcloud >/dev/null 2>&1; then
+        echo "Error: hcloud CLI not installed" >&2
+        echo "Install: https://github.com/hetznercloud/cli" >&2
+        exit 1
+    fi
+
+    if ! run_hcloud context active >/dev/null 2>&1; then
+        echo "Error: hcloud not authenticated" >&2
+        echo "Run: hcloud context create <name>" >&2
+        echo "Or set: HCLOUD_TOKEN=<token>" >&2
+        exit 1
+    fi
+
+    # Check if already running
+    if is_hcloud_running "$name"; then
+        echo "Hetzner Cloud VM already running" >&2
+        return 0
+    fi
+
+    ensure_hcloud_state_dir "$name"
+
+    local state_dir
+    state_dir="$(hcloud_state_dir "$name")"
+    local id_file="$state_dir/server.id"
+    local ip_file="$state_dir/server.ip"
+    local timestamp_file="$state_dir/created.timestamp"
+
+    # Prepare VM name
+    local vm_name
+    vm_name="$(get_hcloud_vm_name "$name")"
+
+    # Validate VM name length (DNS limit is 63 chars)
+    if [[ ${#vm_name} -gt 63 ]]; then
+        echo "Error: VM name too long (${#vm_name} > 63): $vm_name" >&2
+        echo "Try using a shorter directory name" >&2
+        exit 1
+    fi
+
+    # Get SSH keys from agent
+    local ssh_keys_b64
+    ssh_keys_b64=$(get_ssh_agent_keys)
+
+    if [[ -z "$ssh_keys_b64" ]]; then
+        echo "Warning: No SSH keys found in agent" >&2
+        echo "VM will not have SSH access configured" >&2
+    fi
+
+    # Decode SSH keys for cloud-init
+    local ssh_keys
+    if [[ -n "$ssh_keys_b64" ]]; then
+        ssh_keys=$(echo "$ssh_keys_b64" | base64 -d)
+    fi
+
+    # Create cloud-init user-data
+    local cloud_init_file
+    cloud_init_file=$(mktemp)
+    # shellcheck disable=SC2064
+    trap "rm -f '$cloud_init_file'" EXIT
+
+    # Build the users section with SSH keys inline to ensure proper YAML structure
+    cat > "$cloud_init_file" <<EOF
+#cloud-config
+hostname: $vm_name
+users:
+  - name: dev
+    groups: [sudo]
+    shell: /bin/zsh
+    sudo: ALL=(ALL) NOPASSWD:ALL
+EOF
+
+    # Add SSH keys if available
+    if [[ -n "$ssh_keys" ]]; then
+        {
+            echo "    ssh_authorized_keys:"
+            while IFS= read -r key; do
+                if [[ -n "$key" ]]; then
+                    # Quote the key to handle special YAML characters (especially : in comments)
+                    printf "      - \"%s\"\n" "$key"
+                fi
+            done <<< "$ssh_keys"
+        } >> "$cloud_init_file"
+    fi
+
+    cat >> "$cloud_init_file" <<'EOF'
+
+packages:
+  - ufw
+  - sshguard
+  - rsync
+  - git
+  - rake
+  - curl
+  - wget
+  - vim
+  - htop
+  - build-essential
+  - zsh
+
+runcmd:
+  - "sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config"
+  - systemctl restart sshd
+  - mkdir -p /home/dev/workspace
+  - chown dev:dev /home/dev/workspace
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw --force enable
+  - systemctl enable sshguard
+  - systemctl start sshguard
+  - "su dev -c 'git clone https://github.com/narkaTee/dotfiles.git /home/dev/dotfiles'"
+  - "su dev -c 'cd /home/dev/dotfiles && rake'"
+EOF
+
+    echo "Creating Hetzner Cloud VM: $vm_name"
+    echo "  Type: $HCLOUD_SERVER_TYPE"
+    echo "  Location: $HCLOUD_LOCATION"
+    echo "  Image: $HCLOUD_IMAGE"
+
+    # Create server
+    local create_output
+    if ! create_output=$(run_hcloud server create \
+        --name "$vm_name" \
+        --type "$HCLOUD_SERVER_TYPE" \
+        --location "$HCLOUD_LOCATION" \
+        --image "$HCLOUD_IMAGE" \
+        --user-data-from-file "$cloud_init_file" \
+        -o json); then
+        echo "Error: Failed to create Hetzner Cloud VM" >&2
+        echo "$create_output" >&2
+        rm -f "$cloud_init_file"
+        exit 1
+    fi
+
+    # Parse server ID and IP from output
+    local server_id
+    local server_ip
+    server_id=$(echo "$create_output" | jq -r '.server.id')
+    server_ip=$(echo "$create_output" | jq -r '.server.public_net.ipv4.ip')
+
+    if [[ -z "$server_id" ]] || [[ "$server_id" == "null" ]]; then
+        echo "Error: Could not parse server ID from hcloud output" >&2
+        exit 1
+    fi
+
+    if [[ -z "$server_ip" ]] || [[ "$server_ip" == "null" ]]; then
+        echo "Error: Could not parse server IP from hcloud output" >&2
+        exit 1
+    fi
+
+    # Save state
+    echo "$server_id" > "$id_file"
+    echo "$server_ip" > "$ip_file"
+    date +%s > "$timestamp_file"
+
+    echo "VM created with ID: $server_id"
+    echo "Public IP: $server_ip"
+
+    echo "Waiting for SSH to become available..."
+    local boot_start
+    boot_start=$(date +%s)
+
+    if ! wait_for_ssh "$server_ip" "22" "dev" 120; then
+        echo "Error: SSH not available after 120s" >&2
+        echo "VM may still be provisioning. Try: ssh dev@$server_ip" >&2
+        echo "Or stop and retry: sandbox stop" >&2
+        exit 1
+    fi
+
+    local boot_end
+    boot_end=$(date +%s)
+    local boot_time=$((boot_end - boot_start))
+    echo "SSH available after ${boot_time}s"
+
+    setup_ssh_alias "$name" "22" "$server_ip"
+
+    if is_ssh_alias_setup "$name"; then
+        echo "SSH alias: $name"
+    else
+        echo "SSH: dev@$server_ip"
+    fi
+
+    # Optional: rsync workspace if --sync flag is set
+    if [[ "${SYNC:-false}" == "true" ]]; then
+        echo "Syncing workspace to VM..."
+        if rsync -av --delete \
+                -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+                "$workspace/" "dev@$server_ip:/home/dev/workspace/" 2>&1; then
+            echo "Workspace synced successfully"
+        else
+            echo "Warning: rsync failed, but VM is still usable" >&2
+        fi
+    fi
+
+    rm -f "$cloud_init_file"
+}
+
+stop_hcloud_sandbox() {
+    local name="$1"
+    local state_dir
+    state_dir="$(hcloud_state_dir "$name")"
+    local id_file="$state_dir/server.id"
+
+    if [[ ! -f "$id_file" ]]; then
+        echo "No Hetzner Cloud VM state found for: $name" >&2
+        return 0
+    fi
+
+    local server_id
+    server_id="$(cat "$id_file")"
+
+    echo "Destroying Hetzner Cloud VM: $server_id"
+
+    # Attempt to delete server
+    if ! run_hcloud server delete "$server_id" 2>&1; then
+        echo "Error: Failed to delete Hetzner Cloud VM (ID: $server_id)" >&2
+        echo "Server may still be running and incurring costs!" >&2
+        echo "" >&2
+        echo "Retry with: sandbox stop" >&2
+        echo "Or manually delete via: hcloud server delete $server_id" >&2
+        echo "" >&2
+        echo "Local state preserved at: $state_dir" >&2
+        exit 1
+    fi
+
+    echo "VM destroyed successfully"
+
+    # Remove SSH alias
+    if is_ssh_alias_setup "$name"; then
+        remove_ssh_alias "$name"
+    fi
+
+    # Cleanup state directory
+    rm -rf "$state_dir"
+}
+
+stop_all_hcloud_sandboxes() {
+    if [[ ! -d "$HCLOUD_BASE_DIR" ]]; then
+        return
+    fi
+
+    local stopped_count=0
+
+    for state_dir in "$HCLOUD_BASE_DIR"/sandbox-*; do
+        if [[ ! -d "$state_dir" ]]; then
+            continue
+        fi
+
+        local name
+        name="$(basename "$state_dir")"
+
+        echo "Stopping: $name"
+        if stop_hcloud_sandbox "$name"; then
+            stopped_count=$((stopped_count + 1))
+        fi
+    done
+
+    if [[ $stopped_count -eq 0 ]]; then
+        echo "No Hetzner Cloud sandboxes to stop"
+    else
+        echo "Stopped $stopped_count Hetzner Cloud sandbox(es)"
+    fi
+}
+
+# List hcloud sandboxes from filesystem state only (no API calls)
+# Note: May show stale entries if VM was deleted externally - acceptable for non-critical operation
+list_hcloud_sandboxes() {
+    if [[ ! -d "$HCLOUD_BASE_DIR" ]]; then
+        echo "No Hetzner Cloud sandboxes running"
+        return
+    fi
+
+    local found=0
+    local first=1
+
+    for state_dir in "$HCLOUD_BASE_DIR"/sandbox-*; do
+        if [[ ! -d "$state_dir" ]]; then
+            continue
+        fi
+
+        local name ip
+        name="$(basename "$state_dir")"
+        local ip_file="$state_dir/server.ip"
+
+        if [[ -f "$ip_file" ]]; then
+            ip="$(cat "$ip_file")"
+        else
+            ip="unknown"
+        fi
+
+        # Print header on first entry
+        if [[ $first -eq 1 ]]; then
+            printf "%-40s %-20s\n" "NAME" "IP"
+            first=0
+        fi
+
+        printf "%-40s %-20s\n" "$name" "$ip"
+        found=1
+    done
+
+    if [[ $found -eq 0 ]]; then
+        echo "No Hetzner Cloud sandboxes running"
+    fi
+}
