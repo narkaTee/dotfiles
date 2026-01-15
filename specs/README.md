@@ -15,6 +15,7 @@ This directory contains detailed specifications for each component in the dotfil
 | **Sandbox** | **[sandbox.md](sandbox.md)** | `bash/bin/sandbox` | **Backend-independent sandbox orchestration and IDE integration** |
 | ↳ Container Backend | [sandbox-container.md](sandbox-container.md) | `bash/lib/sandbox/container-backend` | Docker/Podman-based sandboxes with container isolation |
 | ↳ KVM Backend | [sandbox-kvm.md](sandbox-kvm.md) | `bash/lib/sandbox/kvm-backend` | QEMU/KVM-based VM sandboxes with full root access |
+| ↳ Hetzner Cloud Backend | [sandbox-hcloud.md](sandbox-hcloud.md) | `bash/lib/sandbox/hcloud-backend` | Hetzner Cloud VMs with ephemeral lifecycle and direct SSH access |
 | ↳ Proxy Backend | [sandbox-proxy.md](sandbox-proxy.md) | `bash/lib/sandbox/proxy-backend`, `bash/lib/sandbox/proxy-cli` | Restrictive proxy with domain allowlist |
 
 ## Purpose of These Specs
