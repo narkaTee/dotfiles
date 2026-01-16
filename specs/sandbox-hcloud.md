@@ -9,11 +9,11 @@ The Hetzner Cloud backend provides cloud-based development sandboxes using Hetzn
 - **Requires hcloud CLI**: Must have `hcloud` command installed and authenticated
 - **1Password CLI auto-detection**: Automatically uses `op plugin run -- hcloud` if configured
 - **Ephemeral VMs**: VMs destroyed on stop - no persistent cloud state, no costs when stopped
-- **Fixed server type**: Uses CX21 (2 vCPU, 4GB RAM) hardcoded for consistency
 - **Hardcoded region**: All VMs created in nbg1 (Nuremberg) datacenter
 - **Debian 13 base**: Uses Hetzner's stock debian-13 image with cloud-init provisioning
 - **Direct SSH access**: Connects to VM's public IP on port 22 (no port forwarding)
 - **Security hardening**: VMs provisioned with UFW firewall and sshguard
+- **Dotfiles auto-provisioning**: Automatically clones and configures dotfiles repo during VM initialization
 - **Hostname-prefixed naming**: VMs named `{hostname}-sandbox-{project}` to avoid conflicts
 - **Optional workspace sync**: Rsync only when `--sync` flag specified
 - **State persistence on errors**: Failed stop operations preserve local state for retry
@@ -73,17 +73,19 @@ stop_all_hcloud_sandboxes
 - Detection on first hcloud command: Check if `~/.config/op/plugins/used_items/hcloud.json` exists
 - If detected, create `use_op` flag file in state directory
 - All subsequent `hcloud` commands wrapped: `op plugin run -- hcloud ...`
+- **Account auto-detection**: Reads `account_id` from `hcloud.json` array entries
+- Account ID passed via `--account` flag: `op --account <id> plugin run -- hcloud ...`
+- If multiple accounts in JSON, uses first entry's `account_id`
+- Falls back to no account flag if parsing fails or file is malformed
 - Detection runs once per sandbox lifecycle
 - No user configuration required - fully automatic
 - Uses op plugin system designed for CLI tool credential injection
 - Non-invasive detection: Simple file existence check, no commands executed
 
 **VM resources (hardcoded):**
-- Server type: CX21
-- Memory: 4GB
-- CPUs: 2 vCPUs
-- Location: nbg1 (Nuremberg)
-- Image: debian-13
+- Server type: CX23 (can be overridden via HCLOUD_SERVER_TYPE, to allow larger workloads)
+- Location: nbg1 (Nuremberg) (hardcoded)
+- Image: debian-13 (hardcoded)
 
 **VM naming:**
 - Format: `{hostname}-sandbox-{project}`
@@ -131,74 +133,18 @@ stop_all_hcloud_sandboxes
 
 **Cloud-init provisioning:**
 - SSH keys injected from host SSH agent
-- Packages: ufw, sshguard, rsync, git, curl, vim, build-essential
+- Packages: ufw, sshguard, rsync, git, rake, curl, wget, vim, htop, build-essential, zsh, jq, unzip, zip, fzf
 - UFW configured: deny incoming, allow outgoing, allow SSH
 - sshguard enabled for SSH protection
 - User `dev` created with sudo NOPASSWD
+- Dotfiles repo (https://github.com/narkaTee/dotfiles.git) cloned and configured (`rake`) automatically
+- Development tools pre-warmed for faster first use via this bash script: https://raw.githubusercontent.com/narkaTee/bootstrap-ws/refs/heads/main/sandbox/pre-warm-tools.sh
 
 ## Testing
 
-**Requirements verification:**
-1. Check `hcloud` command available
-2. Verify authentication: `hcloud context active` succeeds
-3. Verify rsync installed (for `--sync` flag)
-
-**VM lifecycle:**
-1. Start hcloud sandbox - should create VM and boot in 30-60 seconds
-2. Verify VM exists in Hetzner console
-3. Verify SSH connection works without password
-4. Inside VM, verify `/home/dev/workspace` exists (empty)
-5. Stop sandbox - VM should be destroyed
-6. Verify VM no longer in Hetzner console
-7. Verify local state cleaned up
-
-**Workspace sync:**
-1. Create test files in local directory
-2. Start with `--sync` flag
-3. SSH to VM, verify files present in `/home/dev/workspace`
-4. Stop sandbox
-5. Start without `--sync` - workspace should be empty
-
-**Multiple sandboxes:**
-1. Start sandbox in directory A
-2. Start sandbox in directory B
-3. Verify both VMs running with different names
-4. `sandbox list` shows both with correct IPs
-5. Stop from directory A - only that VM destroyed
-6. Stop from directory B - remaining VM destroyed
-
-**Error handling:**
-1. Start sandbox, manually delete VM in Hetzner console
-2. Run `sandbox` - should detect missing VM and allow restart
-3. Start sandbox, disconnect internet
-4. Run `sandbox stop` - should fail with error
-5. Verify local state preserved
-6. Restore internet, retry `sandbox stop` - should succeed
-
-**SSH alias:**
-1. Ensure `~/.ssh/config.d/` exists
-2. Start hcloud sandbox
-3. Verify alias file created
-4. Test `ssh sandbox-<name>` works
-5. Stop sandbox - alias file removed
-
-**Authentication:**
-1. Test with HCLOUD_TOKEN environment variable set
-2. Test with hcloud CLI context configured
-3. Test with no authentication - should fail with helpful message
-
-**1Password CLI integration:**
-1. With `op plugin` configured for hcloud:
-   - Backend detects via file existence: `~/.config/op/plugins/used_items/hcloud.json`
-   - All `hcloud` commands run via `op plugin run -- hcloud ...`
-   - Verify VM creation works with op-managed credentials
-2. Without `op` configured:
-   - Falls back to normal hcloud authentication
-   - Behavior identical to non-op flow
-3. Detection mechanism:
-   - Check if `~/.config/op/plugins/used_items/hcloud.json` exists
-   - Does NOT require `op` command to be available
-   - Does NOT trigger authentication prompts or user interaction
-   - Pure file existence check - completely non-invasive
-   - If file exists, use op plugin for all hcloud commands
-   - If file doesn't exist, use hcloud directly
+**Success criteria:**
+1. **VM lifecycle**: Start creates VM with SSH access, stop destroys VM and cleans state, no Hetzner costs when stopped
+2. **1Password plugin auto-detection**: Automatically detects and uses `op plugin run` when `hcloud.json` exists, extracts account ID correctly, falls back gracefully on errors
+3. **Workspace sync**: `--sync` flag syncs local files to `/home/dev/workspace`, without flag workspace is empty
+4. **Stale state handling**: VM deleted externally allows restart with warning, failed stop preserves state for retry
+5. **Multiple sandboxes**: Different projects run simultaneously with unique names and IPs, independent lifecycle management
