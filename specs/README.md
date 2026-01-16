@@ -39,8 +39,10 @@ When working with features:
 
 ## Contributing
 
+When working with a spec (Creating, Updating, Reviewing) use these guidelines: [how-to-write-specs.md](how-to-write-specs.md).
+
 When adding a new features or specs:
-1. Create or update a spec using the guidelines in [how-to-write-specs.md](how-to-write-specs.md)
+1. Create or update a spec using the guidelines
 2. Add an entry to the Components table above
 3. Create an implementation plan if needed (see [how-to-write-implementation-plans.md](how-to-write-implementation-plans.md))
 4. Stop. Implementation is triggered in a new session
