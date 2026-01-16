@@ -3,7 +3,8 @@
 #
 # Hetzner Cloud backend for sandbox
 
-HCLOUD_SERVER_TYPE="cx23"  # 2 vCPU, 4GB RAM
+# https://www.hetzner.com/cloud/#pricing
+HCLOUD_SERVER_TYPE="${HCLOUD_SERVER_TYPE:-cx23}"  # 2 vCPU, 4GB RAM (can override via env var)
 HCLOUD_LOCATION="nbg1"     # Nuremberg datacenter
 HCLOUD_IMAGE="debian-13"
 HCLOUD_BASE_DIR="$SANDBOX_CACHE_BASE/hcloud-vms"
@@ -25,11 +26,29 @@ should_use_op() {
     [[ -f "$op_plugin_file" ]]
 }
 
+# Extract account ID from 1Password plugin configuration
+# Returns account_id from first entry in JSON array, or empty string on error
+get_op_account_id() {
+    local op_plugin_file="$HOME/.config/op/plugins/used_items/hcloud.json"
+    if [[ ! -f "$op_plugin_file" ]]; then
+        return
+    fi
+
+    # Extract first account_id from JSON array, suppress errors
+    jq -r '.[0].account_id // empty' "$op_plugin_file" 2>/dev/null || true
+}
+
 # Wrapper for hcloud commands that auto-detects 1Password CLI integration
 # Usage: run_hcloud <args...>
 run_hcloud() {
     if should_use_op; then
-        op plugin run -- hcloud "$@"
+        local account_id
+        account_id="$(get_op_account_id)"
+        if [[ -n "$account_id" ]]; then
+            op --account "$account_id" plugin run -- hcloud "$@"
+        else
+            op plugin run -- hcloud "$@"
+        fi
     else
         hcloud "$@"
     fi
@@ -157,6 +176,7 @@ EOF
         } >> "$cloud_init_file"
     fi
 
+    # Yep that is really dirty but for now I don't care ;) Building a hetzner image is to much work 🦥
     cat >> "$cloud_init_file" <<'EOF'
 
 packages:
@@ -171,6 +191,10 @@ packages:
   - htop
   - build-essential
   - zsh
+  - jq
+  - unzip
+  - zip
+  - fzf
 
 runcmd:
   - "sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config"
@@ -185,6 +209,7 @@ runcmd:
   - systemctl start sshguard
   - "su dev -c 'git clone https://github.com/narkaTee/dotfiles.git /home/dev/dotfiles'"
   - "su dev -c 'cd /home/dev/dotfiles && rake'"
+  - "su dev -c 'curl -s https://raw.githubusercontent.com/narkaTee/bootstrap-ws/refs/heads/main/sandbox/pre-warm-tools.sh | bash'"
 EOF
 
     echo "Creating Hetzner Cloud VM: $vm_name"

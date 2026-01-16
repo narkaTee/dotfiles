@@ -19,7 +19,8 @@ patch_prompt_file() {
 
     local blocks=()
     [[ "${BACKEND:-}" == "container" ]] && blocks+=("sandbox-container")
-    [[ "${BACKEND:-}" == "kvm" ]] && blocks+=("sandbox-kvm")
+    [[ "${BACKEND:-}" == "kvm" ]] && blocks+=("sandbox-vm")
+    [[ "${BACKEND:-}" == "hcloud" ]] && blocks+=("sandbox-vm")
     [[ "${PROXY:-false}" == "true" ]] && blocks+=("proxy-restrictions")
 
     touch "$prompt_file"

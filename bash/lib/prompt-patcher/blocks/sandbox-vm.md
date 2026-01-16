@@ -1,6 +1,6 @@
 # KVM Sandbox Environment
 
-You are running inside a KVM-based virtual machine with full system access and multiple package managers available.
+You are running inside a virtual machine with full system access and multiple package managers available.
 
 ## Environment Capabilities
 - **Full VM environment**: Complete system access with root privileges
