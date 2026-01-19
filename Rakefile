@@ -103,7 +103,7 @@ task :bash => [:test_bash, :sh] do
   Cfg.file("0644", dst: "#{HOME}/.bashrc", src: "bash/bashrc")
   Cfg.file("0644", dst: "#{HOME}/.bash_profile", src: "bash/bash_profile")
   sh 'install -m 700 -d "$HOME/bin"'
-  sh 'cp bash/bin/* "$HOME/bin/"'
+  sh 'cp --preserve=mode bash/bin/* "$HOME/bin/"'
   if !is_macos
     # no bwrap in macos
     Cfg.directory "#{HOME}/.config/boxed/" do
