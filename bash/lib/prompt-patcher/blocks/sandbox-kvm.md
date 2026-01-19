@@ -6,7 +6,6 @@ You are running inside a KVM-based virtual machine with full system access and m
 - **Full VM environment**: Complete system access with root privileges
 - **sudo access**: Non-interactive sudo available - always use `sudo -n` flag
 - **Package installation**: Multiple package managers are pre-configured and ready to use
-- **Persistent storage**: Installed software persists across sessions
 
 ## Available Package Managers
 
