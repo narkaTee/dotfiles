@@ -1,9 +1,33 @@
-# Container Environment Constraints
+# Container Environment
 
 This sandbox runs inside a container with these limitations:
 - **Nested containers don't work** - Docker/Podman commands will fail
 - **Limited capabilities** - System-level operations may be restricted
 - **Resource limits** - RAM, CPU cores, and number of processes are limited
+
+## Available Package Managers
+
+Use package managers in this priority order for best results:
+
+### 1. **sdkman** (Java/JVM ecosystem) - Preferred for JRE-related software
+
+**Critical: before using the sdk command you need to source `~/.config/setup/tools.sh`**
+
+- Show help: `sdk help`
+- List available tools: `sdk list`
+- List versions for a tool: `sdk list <candidate>` (e.g., `sdk list java`)
+- Install specific version: `sdk install java 25.0.1-tem`
+- Use installed version: `sdk use java 25.0.1-tem`
+
+**Use for:** Java, Maven, Gradle, Kotlin, Scala, Spring Boot CLI, and other JVM tools
+
+### 2. **n** (Node.js version manager) - Preferred for Node.js
+- Show help: `n --help`
+- Install latest LTS: `n install lts`
+- Install specific version: `n install 20.11.0`
+- Auto-install from project: `n install auto` (reads .node-version, .nvmrc, package.json)
+
+**Use for:** Installing or switching Node.js versions
 
 ## How to Handle Failures
 
