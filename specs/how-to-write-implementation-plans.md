@@ -38,12 +38,7 @@ Skip the implementation plan for:
    - Where alternative approaches were considered
    - Why specific choices were made during planning
 
-3. **Testing Strategy**
-   - How to test incrementally during implementation
-   - Integration testing approach
-   - There can be **HINTS** about what testing methology (Unit, Property, Integreation) are viable.
-
-4. **Risks and Unknowns**
+3. **Risks and Unknowns**
    - Areas where the approach might need adjustment
    - Dependencies on external factors
 

@@ -31,11 +31,6 @@ Each spec file should include:
    - 1-2 concrete examples showing typical usage
    - Expected input/output behavior
 
-4. **Testing**
-   - Clear success criteria
-   - 3-5 key test scenarios
-   - How to verify the feature works correctly
-
 ### Optional Sections (only if critical)
 
 - **Dependencies** - Required packages or external services

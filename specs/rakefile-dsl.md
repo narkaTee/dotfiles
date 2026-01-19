@@ -63,26 +63,3 @@ elsif is_linux && has_command("systemctl")
   Cfg.file("0644", src: "linux/service", dst: "#{HOME}/.config/systemd/user/")
 end
 ```
-
-## Testing
-
-**Syntax validation:**
-1. Run `rake check` - should pass all shellcheck and syntax checks
-2. Verify no shellcheck warnings for shell scripts
-3. Test bash/zsh/POSIX sh syntax checks individually: `rake test_bash`, `rake test_zsh`, `rake test_sh`
-
-**Installation tests:**
-1. Run `rake install` in clean environment
-2. Verify all declared files and directories are created
-3. Verify file permissions match declarations
-4. Verify git repositories are cloned to correct locations
-
-**Update behavior:**
-1. Modify source file and run `rake` again
-2. Verify target file is updated
-3. For directories with `purge`, verify removed source files are deleted from target
-
-**Platform detection:**
-1. Test `is_macos` returns correct boolean on macOS/Linux
-2. Test `has_command` correctly detects installed commands
-3. Verify platform-specific configurations only apply on matching OS
