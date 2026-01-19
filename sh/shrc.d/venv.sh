@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+# shellcheck shell=sh
 venv_list() {
     for env in "$HOME/.venv"/*; do
         [ -d "$env" ] || continue
@@ -42,8 +41,7 @@ venv() {
         fi
 
         . "$HOME/.venv/$venvSwitchTo/bin/activate"
+        echo "Activated $venvSwitchTo venv"
     fi
 
 }
-
-venv "$@"
