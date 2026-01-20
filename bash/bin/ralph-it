@@ -2,11 +2,12 @@
 
 MAX_ITERATIONS=20
 
-vim PROMPT.md
-
 case "${1:-}" in
-    "claude")
+    "claude-headless")
         set -- claude -p --output-format=stream-json --verbose --dangerously-skip-permissions
+        ;;
+    "claude-tui")
+        set -- claude --dangerously-skip-permissions
         ;;
 esac
 
@@ -14,7 +15,7 @@ iteration=0
 while [ $iteration -lt $MAX_ITERATIONS ]; do
     iteration=$((iteration + 1))
     echo "Iteration $iteration/$MAX_ITERATIONS"
-    "$@" < PROMPT.md | tee -a output.jsonl
+    "$@" < PROMPT.md
     sleep 10
 done
 
