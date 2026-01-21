@@ -31,6 +31,10 @@ get_tool_config_dir() {
     esac
 }
 
+if [ "$1" ]; then
+    bind_ro_if_exists "$HOME/.local/share/claude/"
+fi
+
 # defined by boxed
 # shellcheck disable=SC2154
 tool_name="$command_name"

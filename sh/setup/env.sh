@@ -4,10 +4,13 @@ if [ -d "$HOME/.config/git/scripts" ]; then
     PATH="$PATH:$HOME/.config/git/scripts"
 fi
 
-# Should be the last path modification so it takes precedence
 # set PATH to include the private bin if it exists
 if [ -d "$HOME/bin" ]; then
-    PATH="$HOME/bin:$PATH"
+    PATH="$PATH:$HOME/bin"
+fi
+
+if [ -d "$HOME/.local/bin" ]; then
+    PATH="$PATH:$HOME/.local/bin"
 fi
 
 if [ -f "$HOME/.config/setup/env.local.sh" ]; then
