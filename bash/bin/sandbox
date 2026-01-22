@@ -349,6 +349,31 @@ cmd_code() {
     fi
 }
 
+cmd_tmux() {
+    local name
+    name="$(sandbox_name)"
+    ensure_sandbox "$name"
+
+    if ! command -v alacritty >/dev/null 2>&1; then
+        echo "Error: Alacritty terminal emulator not found" >&2
+        echo "Please install Alacritty to use 'sandbox tmux'" >&2
+        exit 1
+    fi
+
+    echo "Opening Alacritty terminal with tmux session on $name..."
+
+    if is_ssh_alias_setup "$name"; then
+        alacritty --title "sandbox: $name" -e ssh -t "$name" "cd /home/dev/workspace && exec tmux new-session -A" &
+    else
+        local port
+        port="$(get_ssh_port_or_fail "$name")"
+        alacritty --title "sandbox: $name" -e ssh -t -o UserKnownHostsFile=/dev/null \
+            -o StrictHostKeyChecking=no \
+            -p "$port" dev@localhost \
+            "cd /home/dev/workspace && exec tmux new-session -A" &
+    fi
+}
+
 cmd_help() {
     cat <<EOF
 sandbox - Containerized development sandbox
@@ -380,6 +405,7 @@ Commands:
     (none)        Start/enter sandbox for current directory
     idea          Open IntelliJ IDEA connected to sandbox
     code          Open Visual Studio Code connected to sandbox
+    tmux          Open Alacritty terminal with tmux session
     proxy         Manage proxy and domain allowlist (see 'proxy help')
     list          List running sandboxes
     stop          Stop sandbox for current directory
@@ -465,6 +491,7 @@ main() {
         ""|start|enter)  cmd_start_or_enter ;;
         idea)            cmd_idea ;;
         code)            cmd_code ;;
+        tmux)            cmd_tmux ;;
         proxy)           shift; cmd_proxy "$@" ;;
         ls|list)         cmd_list ;;
         stop)            shift; cmd_stop "$@" ;;

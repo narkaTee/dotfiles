@@ -40,6 +40,9 @@ sandbox code
 
 # Open in IntelliJ IDEA via JetBrains Gateway
 sandbox idea
+
+# Open in new Alacritty terminal with tmux
+sandbox tmux
 ```
 
 **Management commands:**
@@ -77,6 +80,7 @@ sandbox proxy reset
 - `~/.ssh/config.d/` directory for SSH aliases
 - VS Code for `sandbox code` command
 - JetBrains Gateway for `sandbox idea` command
+- Alacritty terminal emulator for `sandbox tmux` command
 
 ## Configuration
 
@@ -109,6 +113,16 @@ Extracts public keys from host SSH agent and injects into sandbox for passwordle
 **IDE URL schemes:**
 - VS Code: `vscode://vscode-remote/ssh-remote+<host>/home/dev/workspace`
 - IntelliJ: `jetbrains://gateway/ssh/environment?h=<host>&launchIde=true&ideHint=IU&projectHint=/home/dev/workspace`
+
+**Terminal integration (`sandbox tmux`):**
+- **Terminal emulator**: Hardcoded to Alacritty (fails with error if not installed)
+- **Terminal title**: is set to "sandbox: <sandbox name>"
+- **Execution mode**: Background/detached (non-blocking, returns immediately)
+- **tmux behavior**: Attach to existing session or create new (`tmux new-session -A`)
+- **Session naming**: Default/auto-generated (no explicit session name)
+- **Working directory**: Starts in `/home/dev/workspace`
+- **SSH connection**: Uses SSH alias if available, otherwise direct port connection with same options as `backend_enter`
+- **Error handling**: Shows clear error message and exits if Alacritty not found
 
 **Nested sandbox prevention:**
 Sets `$SANDBOX_CONTAINER` environment variable inside sandboxes to prevent recursive sandboxing.
