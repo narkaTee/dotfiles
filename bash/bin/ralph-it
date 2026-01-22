@@ -1,22 +1,86 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 MAX_ITERATIONS=20
+INTERACTIVE_MODE=false
 
-case "${1:-}" in
-    "claude-headless")
-        set -- claude -p --output-format=stream-json --verbose --dangerously-skip-permissions
-        ;;
-    "claude-tui")
-        set -- claude --dangerously-skip-permissions
-        ;;
-esac
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "${1}" in
+        -i)
+            INTERACTIVE_MODE=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
+# Ensure PROMPT.md exists
+if [ ! -f PROMPT.md ]; then
+    vim PROMPT.md
+fi
+
+# Create logs directory
+mkdir -p logs
+
+# Generate log filename with timestamp
+LOG_FILE="logs/ralph-it-$(date +%Y%m%d-%H%M%S).jsonl"
+
+# Run claude with appropriate flags
+run_claude() {
+    if [ "$INTERACTIVE_MODE" = true ]; then
+        # Interactive mode: run without -p flag
+        claude --dangerously-skip-permissions "$@" < PROMPT.md
+    else
+        # Autonomous mode: run with -p and parse JSON output
+        "$COMMAND" -p --output-format=stream-json --verbose --dangerously-skip-permissions "$@" < PROMPT.md 2>&1 | \
+            tee -a "$LOG_FILE" | \
+            jq --unbuffered -r '
+                if .type == "assistant" then
+                    .message.content[]? |
+                    if .type == "text" then "💭 \(.text)"
+                    elif .type == "tool_use" then "🔧 \(.name): \(.input.file_path // .input.pattern // .input.command // (.input | tostring | .[0:80]))"
+                    else empty end
+                elif .type == "result" then
+                    "\n✅ Done (\(.duration_ms)ms, cost: $\(.total_cost_usd | tostring | .[0:6]))"
+                elif .type == "system" and .subtype == "error" then
+                    "❌ ERROR: \(.error // .message)"
+                else empty end
+            '
+    fi
+
+    return $?
+}
+
+# Main iteration loop
 iteration=0
 while [ $iteration -lt $MAX_ITERATIONS ]; do
     iteration=$((iteration + 1))
-    echo "Iteration $iteration/$MAX_ITERATIONS"
-    "$@" < PROMPT.md
-    sleep 10
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🚀 Iteration $iteration/$MAX_ITERATIONS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if run_claude "$@"; then
+        echo "✅ Iteration $iteration completed successfully"
+    else
+        exit_code=$?
+        echo "⚠️  Iteration $iteration failed with exit code $exit_code (continuing)"
+    fi
+
+    # Sleep between iterations (skip on last iteration)
+    if [ $iteration -lt $MAX_ITERATIONS ]; then
+        echo "⏳ Waiting 10 seconds before next iteration..."
+        sleep 10
+    fi
 done
 
-echo "Reached maximum iterations ($MAX_ITERATIONS)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🏁 Reached maximum iterations ($MAX_ITERATIONS)"
+if [ "$INTERACTIVE_MODE" = false ]; then
+    echo "📝 Full logs saved to: $LOG_FILE"
+fi
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
