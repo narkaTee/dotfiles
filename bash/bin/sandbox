@@ -362,12 +362,16 @@ cmd_tmux() {
 
     echo "Opening Alacritty terminal with tmux session on $name..."
 
+    # Terminal title follows the same pattern as auto_update_term_tittle in sh/setup/helper_functions.sh
+    # Since we're connecting via SSH, the format is: dev@<hostname> (ssh)
+    local title="dev@$name (ssh)"
+
     if is_ssh_alias_setup "$name"; then
-        alacritty --title "sandbox: $name" -e ssh -t "$name" "cd /home/dev/workspace && exec tmux new-session -A" &
+        alacritty --title "$title" -e ssh -t "$name" "cd /home/dev/workspace && exec tmux new-session -A" &
     else
         local port
         port="$(get_ssh_port_or_fail "$name")"
-        alacritty --title "sandbox: $name" -e ssh -t -o UserKnownHostsFile=/dev/null \
+        alacritty --title "$title" -e ssh -t -o UserKnownHostsFile=/dev/null \
             -o StrictHostKeyChecking=no \
             -p "$port" dev@localhost \
             "cd /home/dev/workspace && exec tmux new-session -A" &

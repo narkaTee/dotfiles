@@ -116,7 +116,7 @@ Extracts public keys from host SSH agent and injects into sandbox for passwordle
 
 **Terminal integration (`sandbox tmux`):**
 - **Terminal emulator**: Hardcoded to Alacritty (fails with error if not installed)
-- **Terminal title**: is set to "sandbox: <sandbox name>"
+- **Terminal title**: is set to the same values as the shell function `auto_update_term_tittle` in `sh/setup/helper_functions.sh` would do
 - **Execution mode**: Background/detached (non-blocking, returns immediately)
 - **tmux behavior**: Attach to existing session or create new (`tmux new-session -A`)
 - **Session naming**: Default/auto-generated (no explicit session name)
