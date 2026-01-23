@@ -67,6 +67,11 @@ get_kvm_ssh_port() {
     fi
 }
 
+get_kvm_ip() {
+    local name="$1"
+    echo "localhost"
+}
+
 allocate_ssh_port() {
     # Use Python to let kernel allocate ephemeral port
     python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'

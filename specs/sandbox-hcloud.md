@@ -37,6 +37,9 @@ is_hcloud_running sandbox-myproject
 # Get SSH port (always 22)
 get_hcloud_ssh_port sandbox-myproject
 
+# Get IP address (returns public IPv4)
+get_hcloud_ip sandbox-myproject
+
 # Start Hetzner Cloud VM
 start_hcloud_sandbox sandbox-myproject
 
@@ -99,7 +102,7 @@ stop_all_hcloud_sandboxes
 
 **State files** via `backend_state_dir "hcloud"`:
 - `server.id` - Hetzner server ID (presence = VM may exist)
-- `server.ip` - Public IPv4 for SSH connections
+- `server.ip` - Public IPv4 for SSH connections (read by `get_hcloud_ip()`)
 - `created.timestamp` - Unix timestamp of creation
 
 **Read operations** (no API calls):

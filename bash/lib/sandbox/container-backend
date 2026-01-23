@@ -27,6 +27,11 @@ get_container_ssh_port() {
     $CONTAINER_ENGINE port "$name" 2222 | cut -d: -f2
 }
 
+get_container_ip() {
+    local name="$1"
+    echo "localhost"
+}
+
 ensure_container_image() {
     local image_exists=false
 

@@ -84,6 +84,23 @@ backend_get_ssh_port() {
     esac
 }
 
+backend_get_ip() {
+    local name="$1"
+    local ip
+    case "$BACKEND" in
+        container) ip=$(get_container_ip "$name") ;;
+        kvm) ip=$(get_kvm_ip "$name") ;;
+        hcloud) ip=$(get_hcloud_ip "$name") ;;
+    esac
+
+    if [[ -z "$ip" ]]; then
+        echo "Error: Could not determine IP address" >&2
+        exit 1
+    fi
+
+    echo "$ip"
+}
+
 backend_start() {
     local name="$1"
     case "$BACKEND" in
@@ -263,8 +280,9 @@ cmd_info() {
     local name
     name="$(sandbox_name)"
     ensure_sandbox "$name"
-    local port
+    local port ip
     port="$(get_ssh_port_or_fail "$name")"
+    ip="$(backend_get_ip "$name")"
 
     echo "Sandbox: $name"
     echo "Backend: $BACKEND"
@@ -277,10 +295,10 @@ cmd_info() {
     else
         echo ""
         echo "SSH connection:"
-        echo "  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $port dev@localhost"
+        echo "  ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $port dev@$ip"
         echo ""
         echo "JetBrains Gateway:"
-        echo "  Host: localhost"
+        echo "  Host: $ip"
         echo "  Port: $port"
         echo "  User: dev"
     fi
@@ -369,13 +387,60 @@ cmd_tmux() {
     if is_ssh_alias_setup "$name"; then
         alacritty --title "$title" -e ssh -t "$name" "cd /home/dev/workspace && exec tmux new-session -A" &
     else
-        local port
+        local port ip
         port="$(get_ssh_port_or_fail "$name")"
+        ip="$(backend_get_ip "$name")"
         alacritty --title "$title" -e ssh -t -o UserKnownHostsFile=/dev/null \
             -o StrictHostKeyChecking=no \
-            -p "$port" dev@localhost \
+            -p "$port" "dev@$ip" \
             "cd /home/dev/workspace && exec tmux new-session -A" &
     fi
+}
+
+cmd_sync() {
+    local direction="${1:-}"
+
+    if [[ "$direction" != "up" ]] && [[ "$direction" != "down" ]]; then
+        echo "Error: sync requires 'up' or 'down' argument" >&2
+        echo "Usage: sandbox sync [up|down]" >&2
+        exit 1
+    fi
+
+    # Check if backend is bind-mount based (container/KVM/proxy)
+    if [[ "$BACKEND" == "container" ]] || [[ "$BACKEND" == "kvm" ]]; then
+        echo "Error: sync command is only available for cloud backends (hcloud)" >&2
+        echo "Container and KVM backends use bind mounts, so files are already synchronized" >&2
+        exit 1
+    fi
+
+    local name
+    name="$(sandbox_name)"
+    ensure_sandbox "$name"
+
+    # Get SSH connection info
+    local ssh_target
+    if is_ssh_alias_setup "$name"; then
+        ssh_target="$name"
+    else
+        local ip
+        ip="$(backend_get_ip "$name")"
+        ssh_target="dev@$ip"
+    fi
+
+    # Perform rsync with mirror mode (destructive)
+    if [[ "$direction" == "up" ]]; then
+        echo "Uploading current directory to sandbox workspace..."
+        rsync -hzav --no-o --no-g --delete \
+            -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
+            ./ "${ssh_target}:/home/dev/workspace/"
+    else
+        echo "Downloading sandbox workspace to current directory..."
+        rsync -hzav --no-o --no-g --delete \
+            -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
+            "${ssh_target}:/home/dev/workspace/" ./
+    fi
+
+    echo "Sync complete"
 }
 
 cmd_help() {
@@ -411,6 +476,8 @@ Commands:
     code          Open Visual Studio Code connected to sandbox
     tmux          Open Alacritty terminal with tmux session
     proxy         Manage proxy and domain allowlist (see 'proxy help')
+    sync up       Upload current directory to sandbox (cloud backends only)
+    sync down     Download from sandbox to current directory (cloud backends only)
     list          List running sandboxes
     stop          Stop sandbox for current directory
     stop -a       Stop all sandboxes (all backends)
@@ -497,6 +564,7 @@ main() {
         code)            cmd_code ;;
         tmux)            cmd_tmux ;;
         proxy)           shift; cmd_proxy "$@" ;;
+        sync)            shift; cmd_sync "$@" ;;
         ls|list)         cmd_list ;;
         stop)            shift; cmd_stop "$@" ;;
         info)            cmd_info ;;

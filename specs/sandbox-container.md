@@ -33,6 +33,9 @@ is_container_running sandbox-myproject
 # Get SSH port for container
 get_container_ssh_port sandbox-myproject
 
+# Get IP address for container (returns "localhost")
+get_container_ip sandbox-myproject
+
 # Start sandbox container
 start_container_sandbox sandbox-myproject
 

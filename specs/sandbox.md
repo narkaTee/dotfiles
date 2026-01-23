@@ -6,7 +6,7 @@ The sandbox command orchestrates isolated development environments with pluggabl
 
 ## Key Constraints & Design Decisions
 
-- **Backend abstraction**: All backends implement common interface (`backend_start`, `backend_stop`, `backend_enter`, `backend_is_running`, `backend_get_ssh_port`)
+- **Backend abstraction**: All backends implement common interface (`backend_start`, `backend_stop`, `backend_enter`, `backend_is_running`, `backend_get_ssh_port`, `backend_get_ip`)
 - **Automatic backend detection**: If no flag specified, detects which backend is already running for current directory
 - **Directory-based naming**: Sandbox name derived from current directory basename (sanitized for container/VM naming)
 - **Single backend per sandbox**: Prevents conflicts by ensuring only one backend runs per sandbox name
@@ -69,6 +69,15 @@ sandbox proxy log [-f]
 sandbox proxy reset
 ```
 
+**Sync commands** (cloud backends only):
+```bash
+# Upload current directory to sandbox
+sandbox sync up
+
+# Download from sandbox to current directory
+sandbox sync down
+```
+
 ## Dependencies
 
 **Core requirements:**
@@ -110,6 +119,10 @@ If `~/.ssh/config.d/` exists:
 **SSH agent forwarding:**
 Extracts public keys from host SSH agent and injects into sandbox for passwordless authentication.
 
+**Connection info abstraction:**
+- `backend_get_ssh_port()`: Returns SSH port (dynamic for container/KVM, always 22 for hcloud)
+- `backend_get_ip()`: Returns IP address (localhost for container/KVM, public IPv4 for hcloud)
+
 **IDE URL schemes:**
 - VS Code: `vscode://vscode-remote/ssh-remote+<host>/home/dev/workspace`
 - IntelliJ: `jetbrains://gateway/ssh/environment?h=<host>&launchIde=true&ideHint=IU&projectHint=/home/dev/workspace`
@@ -121,8 +134,27 @@ Extracts public keys from host SSH agent and injects into sandbox for passwordle
 - **tmux behavior**: Attach to existing session or create new (`tmux new-session -A`)
 - **Session naming**: Default/auto-generated (no explicit session name)
 - **Working directory**: Starts in `/home/dev/workspace`
-- **SSH connection**: Uses SSH alias if available, otherwise direct port connection with same options as `backend_enter`
+- **SSH connection**: Uses SSH alias if available, otherwise IP+port connection (`backend_get_ip()` and `backend_get_ssh_port()`) with same options as `backend_enter`
 - **Error handling**: Shows clear error message and exits if Alacritty not found
 
 **Nested sandbox prevention:**
 Sets `$SANDBOX_CONTAINER` environment variable inside sandboxes to prevent recursive sandboxing.
+
+**Workspace synchronization (`sandbox sync`):**
+- **Availability**: Cloud backends only (hcloud); errors on container/KVM backends with helpful message
+- **Backend detection**: Checks backend name; container/KVM use bind mounts so sync is unnecessary
+- **Commands**:
+  - `sandbox sync up` - Upload current directory → `/home/dev/workspace` (mirror mode)
+  - `sandbox sync down` - Download `/home/dev/workspace` → current directory (mirror mode)
+- **Rsync behavior**: Uses `rsync -hzav --no-o --no-g --delete` for destructive mirror:
+  - `-h` - Human-readable output
+  - `-z` - Compress file data during transfer
+  - `-a` - Archive mode (recursive, preserve permissions, timestamps, etc.)
+  - `-v` - Verbose output
+  - `--no-o` - Do not preserve ownership (prevents errors on systems with different users)
+  - `--no-g` - Do not preserve group (prevents errors on systems with different groups)
+  - `--delete` - Delete files in destination that don't exist in source (mirror mode)
+- **SSH connection**: Uses SSH alias if available, otherwise IP-based connection (`backend_get_ip()`) with same options as `backend_enter`
+- **Prerequisites**: Sandbox must be running; errors if not started
+- **No backend changes**: Implemented in main sandbox script using existing SSH connectivity
+- **Error handling**: Clear error if called on bind-mount backends (container/KVM/proxy)

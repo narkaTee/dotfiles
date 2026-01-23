@@ -88,6 +88,19 @@ get_hcloud_ssh_port() {
     fi
 }
 
+get_hcloud_ip() {
+    local name="$1"
+    local state_dir
+    state_dir="$(hcloud_state_dir "$name")"
+    local ip_file="$state_dir/server.ip"
+
+    if [[ -f "$ip_file" ]]; then
+        cat "$ip_file"
+    else
+        echo ""
+    fi
+}
+
 start_hcloud_sandbox() {
     local name="$1"
     local workspace="$PWD"

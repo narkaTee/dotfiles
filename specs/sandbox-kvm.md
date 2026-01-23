@@ -34,6 +34,9 @@ is_kvm_running sandbox-myproject
 # Get SSH port for VM
 get_kvm_ssh_port sandbox-myproject
 
+# Get IP address for VM (returns "localhost")
+get_kvm_ip sandbox-myproject
+
 # Start KVM sandbox
 start_kvm_sandbox sandbox-myproject
 
