@@ -116,6 +116,9 @@ If `~/.ssh/config.d/` exists:
 - Hetzner Cloud backend: [sandbox-hcloud.md](sandbox-hcloud.md)
 - Proxy backend: [sandbox-proxy.md](sandbox-proxy.md)
 
+**AI agent bootstrapping:**
+- AI Agent bootstrapping is done via [sandbox-ai-bootstrap.md](sandbox-ai-bootstrap.md)
+
 **SSH agent forwarding:**
 Extracts public keys from host SSH agent and injects into sandbox for passwordless authentication.
 

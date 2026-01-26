@@ -33,7 +33,8 @@ task :check => [
   :test_sh,
   :test_bash,
   :test_zsh,
-  :shellcheck
+  :shellcheck,
+  :test_bats
 ]
 
 task :shellcheck do
@@ -57,6 +58,24 @@ task :shellcheck do
     end
   end
   raise "shellcheck failed, see output above" if failed
+end
+
+task :test_bats do
+  # Check if bats is available
+  unless system("which bats > /dev/null 2>&1")
+    puts "Warning: bats not installed, skipping bats tests"
+    next
+  end
+
+  # Find all .bats files colocated with source code
+  test_files = Dir.glob("**/*.bats")
+  if test_files.empty?
+    puts "No bats test files found"
+    next
+  end
+
+  puts "Running bats tests..."
+  sh "bats #{test_files.join(' ')}"
 end
 
 task :sh => :test_sh do

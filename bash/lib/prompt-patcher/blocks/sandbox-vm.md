@@ -1,4 +1,4 @@
-# KVM Sandbox Environment
+# VM Sandbox Environment
 
 You are running inside a virtual machine with full system access and multiple package managers available.
 

@@ -88,7 +88,6 @@ insert_or_replace_block() {
     remove_prompt_block "$file" "$block_id"
 
     get_prompt_block "$block_id" "$allowlist_path" >> "$file"
-    echo "" >> "$file"  # Add blank line between blocks
 }
 
 get_existing_block_ids() {
@@ -139,10 +138,14 @@ replace_all_prompt_blocks() {
     shift 2
     local blocks=("$@")
 
-    remove_obsolete_blocks "$file" "${blocks[@]}"
+    # Automatically inject default blocks
+    local default_blocks=("communication" "conventions")
+    local all_blocks=("${default_blocks[@]}" "${blocks[@]}")
+
+    remove_obsolete_blocks "$file" "${all_blocks[@]}"
 
     local block_id
-    for block_id in "${blocks[@]}"; do
+    for block_id in "${all_blocks[@]}"; do
         insert_or_replace_block "$file" "$block_id" "$allowlist_path"
     done
 }
