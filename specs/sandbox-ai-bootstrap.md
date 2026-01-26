@@ -13,16 +13,20 @@ The AI bootstrap library configures AI agent environments inside sandboxes by co
 - **Automatic installation**: Installs/updates agent npm packages after config upload
 - **Minimal onboarding**: Creates `.claude.json` to skip initial setup dialogs
 - **Security considerations**: Gemini OAuth credentials intentionally not copied (commented out) due to revocation concerns
+- **Time boxed retry mechnanism when bootstrapping**: Bootstrapping the AI Agent might fail due to the VM setup not beeing completed yet. The install step should retry bootstrapping after 5 seconds for 30 seconds until it succeeds.
 
 ## Usage
 
 **Invoked automatically by sandbox command:**
 ```bash
 # Bootstrap Claude Code agent on sandbox start
-sandbox --agent claude
+sandbox --agents claude
+
+# Bootstrap Claude Code and Gemini agent on sandbox start
+sandbox --agents claude,gemini
 
 # Bootstrap with specific backend and proxy
-sandbox --kvm --proxy --agent gemini
+sandbox --kvm --proxy --agents gemini
 ```
 
 **Direct function usage** (when sourced):
@@ -97,7 +101,7 @@ Proxy restrictions:
 ## Integration Points
 
 **Called by sandbox script** (bash/bin/sandbox):
-- Sources ai-bootstrap when `--agent` flag is provided
+- Sources ai-bootstrap when `--agents` flag is provided
 - Validates agent name with `ensure_know_agent`
 - Calls `bootstrap_ai` after sandbox start, before entering shell
 

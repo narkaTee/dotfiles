@@ -151,5 +151,27 @@ bootstrap_ai() {
     scp -r "$temp"/.* "$scp_host:~/"
     rm -rf "$temp"
     echo "Installing/Updating Agent..."
-    "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && source ~/.config/setup/env.sh && npm -g install $npm_package'"
+
+    local max_attempts=30
+    local attempt=0
+    local install_success=false
+
+    while [[ $attempt -lt $max_attempts ]]; do
+        attempt=$((attempt + 1))
+
+        if "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && source ~/.config/setup/env.sh && npm -g install $npm_package'" 2>/dev/null; then
+            install_success=true
+            break
+        fi
+
+        if [[ $attempt -lt $max_attempts ]]; then
+            echo "Installation attempt $attempt failed, retrying in 5 seconds..." >&2
+            sleep 5
+        fi
+    done
+
+    if [[ $install_success == false ]]; then
+        echo "Failed to install agent after $max_attempts attempts" >&2
+        exit 1
+    fi
 }

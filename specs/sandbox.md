@@ -30,7 +30,7 @@ sandbox --container
 sandbox --proxy
 
 # Bootstrap with AI agent credentials
-sandbox --agent claude
+sandbox --agents claude
 ```
 
 **IDE integration:**

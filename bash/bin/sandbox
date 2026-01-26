@@ -228,7 +228,11 @@ cmd_start_or_enter() {
     fi
 
     if [[ -n "$AI_BOOTSTRAP" ]]; then
-        bootstrap_ai "$name" "$AI_BOOTSTRAP"
+        # Bootstrap each agent in comma-separated list
+        IFS=',' read -ra agent_array <<< "$AI_BOOTSTRAP"
+        for agent in "${agent_array[@]}"; do
+            bootstrap_ai "$name" "$agent"
+        done
     fi
 
     backend_enter "$name"
@@ -461,9 +465,10 @@ Global Flags:
                     Requires hcloud CLI and authentication
     --sync          Sync workspace to VM (hcloud backend only)
                     Runs rsync from current directory to /home/dev/workspace
-    --proxy         Force all communication to go throug a restrictive proxy
-    --agent <name>  Bootstrap an AI agent in the sandbox with credentials from the host
-                    Supported Agents: claude, gemini, opencode
+    --proxy          Force all communication to go throug a restrictive proxy
+    --agents <list>  Bootstrap AI agents in the sandbox with credentials from the host
+                     Accepts comma-separated list (e.g., claude,gemini)
+                     Supported Agents: claude, gemini, opencode
 
 Backend Selection:
     The backend is automatically detected based on running sandboxes.
@@ -528,15 +533,19 @@ main() {
                 SYNC=true
                 shift
                 ;;
-            --agent)
-                local agent="${2:-}"
-                if [[ -z "$agent" ]]; then
-                    echo "--agent parameter is missing the value"
+            --agents)
+                local agents="${2:-}"
+                if [[ -z "$agents" ]]; then
+                    echo "--agents parameter is missing the value"
                     exit 1
                 fi
                 source "$HOME/.config/lib/bash/sandbox/ai-bootstrap"
-                ensure_know_agent "$agent"
-                AI_BOOTSTRAP="$agent"
+                # Validate all agent names
+                IFS=',' read -ra agent_array <<< "$agents"
+                for agent in "${agent_array[@]}"; do
+                    ensure_know_agent "$agent"
+                done
+                AI_BOOTSTRAP="$agents"
                 shift 2
                 ;;
             *)
