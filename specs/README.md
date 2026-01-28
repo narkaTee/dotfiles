@@ -12,6 +12,10 @@ This directory contains detailed specifications for each component in the dotfil
 
 | Tool | Spec File | Code Location | Description |
 |------|-----------|---------------|-------------|
+| optpl | [optpl.md](optpl.md) | `bash/bin/optpl` | 1Password template injector for secure credential management |
+| boxed | [boxed.md](boxed.md) | `bash/boxed/` | Lightweight bubblewrap-based sandboxing with profile-based configuration |
+| ↳ npm Profile | [boxed-npm.md](boxed-npm.md) | `bash/boxed/profiles.d/npm` | npm package operations with network and cache persistence |
+| ↳ ai-jail Profile | [boxed-ai-jail.md](boxed-ai-jail.md) | `bash/boxed/profiles.d/ai-jail` | AI agent sandbox with config isolation and prompt injection |
 | **Sandbox** | **[sandbox.md](sandbox.md)** | `bash/bin/sandbox` | **Backend-independent sandbox orchestration and IDE integration** |
 | ↳ Common Library | [sandbox-common.md](sandbox-common.md) | `bash/lib/sandbox/common` | Shared utilities for state dirs, SSH wait, SSH aliases. Automatically available to all backends. |
 | ↳ Container Backend | [sandbox-container.md](sandbox-container.md) | `bash/lib/sandbox/container-backend` | Docker/Podman-based sandboxes with container isolation |
