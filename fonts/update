@@ -6,7 +6,9 @@ tmp="$(dirname "${BASH_SOURCE[0]}")/tmp"
 mkdir -p "$tmp/extracted"
 
 # https://github.com/ryanoasis/nerd-fonts/releases
-curl https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/SourceCodePro.tar.xz -LO --output-dir "$tmp"
+latest_version=$(curl -s https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest | grep -oP '"tag_name": "\K[^"]+')
+echo "Fetching latest version: $latest_version"
+curl "https://github.com/ryanoasis/nerd-fonts/releases/download/${latest_version}/SourceCodePro.tar.xz" -LO --output-dir "$tmp"
 tar -xf "$tmp/SourceCodePro.tar.xz" -C "$tmp/extracted/"
 
 # use the standard variants, there are also monospaced (NerdFontMono) and proportional (NerdFontPropo)
