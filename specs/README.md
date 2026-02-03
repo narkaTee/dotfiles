@@ -12,6 +12,7 @@ This directory contains detailed specifications for each component in the dotfil
 
 | Tool | Spec File | Code Location | Description |
 |------|-----------|---------------|-------------|
+| cfg | [cfg.md](cfg.md) | `bin/cfg`, `lib/cfg/` | Encrypted configuration manager using SSH agent signing and 1Password for secure multi-config management |
 | optpl | [optpl.md](optpl.md) | `bash/bin/optpl` | 1Password template injector for secure credential management |
 | boxed | [boxed.md](boxed.md) | `bash/boxed/` | Lightweight bubblewrap-based sandboxing with profile-based configuration |
 | ↳ npm Profile | [boxed-npm.md](boxed-npm.md) | `bash/boxed/profiles.d/npm` | npm package operations with network and cache persistence |
