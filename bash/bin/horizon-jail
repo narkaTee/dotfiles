@@ -1,0 +1,276 @@
+#!/bin/bash
+set -euo pipefail
+
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/horizon-jail"
+ROOT_DIR="$DATA_DIR/root"
+STATE_DIR="$DATA_DIR/state"
+STATE_DIR_TMP="$DATA_DIR/state/tmp"
+STATE_DIR_HOME="$DATA_DIR/state/home"
+CACHE_DIR="$DATA_DIR/cache"
+
+die() { echo "error: $*" >&2; exit 1; }
+
+cmd_import() {
+    local deb="$1"
+    [[ -f "$deb" ]] || die "file not found: $deb"
+
+    mkdir -p "$ROOT_DIR" "$STATE_DIR" "$CACHE_DIR"
+
+    echo "Extracting $deb..."
+    local tmp
+    tmp=$(mktemp -d)
+    trap "rm -rf '$tmp'" EXIT
+
+    ar x --output="$tmp" "$deb"
+
+    local data_tar
+    data_tar=$(ls "$tmp"/data.tar.* 2>/dev/null | head -1)
+    [[ -n "$data_tar" ]] || die "no data.tar.* in deb"
+
+    rm -rf "$ROOT_DIR"
+    mkdir -p "$ROOT_DIR"
+    tar -xf "$data_tar" -C "$ROOT_DIR"
+
+    echo "Imported to $ROOT_DIR"
+}
+
+cmd_run() {
+    [[ -d "$ROOT_DIR/usr" ]] || die "no client imported. run: $0 import <path.deb>"
+    mkdir -p "$STATE_DIR" "$STATE_DIR/run"
+    mkdir -p "$STATE_DIR_TMP"
+    mkdir -p "$STATE_DIR_HOME/viewctrl"
+
+    local bwrap_args=(
+        --die-with-parent
+        --share-net
+
+        # Basic filesystem (except /usr/lib which needs special handling)
+        --ro-bind /usr/bin /usr/bin
+        --ro-bind /usr/sbin /usr/sbin
+        --ro-bind /usr/share /usr/share
+        --ro-bind /usr/include /usr/include
+        --ro-bind /lib /lib
+        --ro-bind /bin /bin
+        --ro-bind /sbin /sbin
+        --proc /proc
+        --dev /dev
+
+        # /usr/lib as tmpfs, then populate it
+        --tmpfs /usr/lib
+    )
+
+    # Bind system library directories into /usr/lib
+    local dir
+    for dir in /usr/lib/*/; do
+        [[ -d "$dir" ]] && bwrap_args+=(--ro-bind "$dir" "$dir")
+    done
+
+    # Bind individual system .so files in /usr/lib
+    local f
+    for f in /usr/lib/*.so* /usr/lib/*.a; do
+        [[ -f "$f" ]] && bwrap_args+=(--ro-bind "$f" "$f")
+    done
+
+    # Horizon client libs
+    bwrap_args+=(
+        --ro-bind "$ROOT_DIR/usr/lib/omnissa" /usr/lib/omnissa
+        --ro-bind "$ROOT_DIR/usr/lib/pcoip" /usr/lib/pcoip
+        --ro-bind "$ROOT_DIR/usr/lib/libclientSdkCPrimitive.so" /usr/lib/libclientSdkCPrimitive.so
+        --ro-bind "$ROOT_DIR/usr/lib/libpcoip_client.so" /usr/lib/libpcoip_client.so
+    )
+
+    # System config (selective)
+    bwrap_args+=(
+        --ro-bind /etc/resolv.conf /etc/resolv.conf
+        --ro-bind /etc/hosts /etc/hosts
+        --ro-bind /etc/passwd /etc/passwd
+        --ro-bind /etc/group /etc/group
+        --ro-bind /etc/nsswitch.conf /etc/nsswitch.conf
+        --ro-bind /etc/ssl /etc/ssl
+        --ro-bind /etc/ca-certificates /etc/ca-certificates
+        --ro-bind /etc/fonts /etc/fonts
+        --ro-bind /etc/machine-id /etc/machine-id
+        --ro-bind /etc/os-release /etc/os-release
+
+        # Tmpfs for runtime (bind STATE_DIR_TMP to /tmp so logs are accessible)
+        --bind "$STATE_DIR_TMP" /tmp
+        --tmpfs /run
+
+        # Home directory (minimal)
+        --tmpfs "$HOME"
+        --bind "$STATE_DIR_HOME" "$HOME/.omnissa"
+
+        # GTK theme config
+        --ro-bind-try "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-3.0"
+        --ro-bind-try "$HOME/.config/gtk-4.0" "$HOME/.config/gtk-4.0"
+        --ro-bind-try "$HOME/.gtkrc-2.0" "$HOME/.gtkrc-2.0"
+        --ro-bind-try "$HOME/.config/dconf" "$HOME/.config/dconf"
+        --ro-bind-try "$HOME/.local/share/themes" "$HOME/.local/share/themes"
+        --ro-bind-try "$HOME/.themes" "$HOME/.themes"
+        --ro-bind-try "$HOME/.icons" "$HOME/.icons"
+        --ro-bind-try "$HOME/.local/share/icons" "$HOME/.local/share/icons"
+
+        # GPU access
+        --dev-bind /dev/dri /dev/dri
+
+        # Input devices
+        --dev-bind /dev/input /dev/input
+
+        # Sysfs (read-only)
+        --ro-bind /sys /sys
+
+        # USB arbitrator socket dir
+        --bind "$STATE_DIR/run" /var/run/omnissa
+    )
+
+    # lib64 if exists
+    [[ -d /lib64 ]] && bwrap_args+=(--ro-bind /lib64 /lib64)
+
+    # /usr/lib64 if exists
+    [[ -d /usr/lib64 ]] && bwrap_args+=(--ro-bind /usr/lib64 /usr/lib64)
+
+    # Horizon etc config if present
+    [[ -d "$ROOT_DIR/etc/omnissa" ]] && bwrap_args+=(--ro-bind "$ROOT_DIR/etc/omnissa" /etc/omnissa)
+    [[ -d "$ROOT_DIR/etc/vmware" ]] && bwrap_args+=(--ro-bind "$ROOT_DIR/etc/vmware" /etc/vmware)
+
+    # USB passthrough
+    [[ -d /dev/bus/usb ]] && bwrap_args+=(--dev-bind /dev/bus/usb /dev/bus/usb)
+    [[ -e /dev/uinput ]] && bwrap_args+=(--dev-bind /dev/uinput /dev/uinput)
+
+    # X11
+    if [[ -n "${DISPLAY:-}" ]]; then
+        bwrap_args+=(--setenv DISPLAY "$DISPLAY")
+        bwrap_args+=(--ro-bind /tmp/.X11-unix /tmp/.X11-unix)
+    fi
+
+    # XDG_RUNTIME_DIR - must come before xauth/sockets that live in it
+    if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+        bwrap_args+=(--setenv XDG_RUNTIME_DIR "/run/user/$(id -u)")
+        bwrap_args+=(--tmpfs "/run/user/$(id -u)")
+
+        # XAUTHORITY (bind after tmpfs)
+        [[ -n "${XAUTHORITY:-}" && -f "$XAUTHORITY" ]] && bwrap_args+=(
+            --ro-bind "$XAUTHORITY" "/run/user/$(id -u)/xauth"
+            --setenv XAUTHORITY "/run/user/$(id -u)/xauth"
+        )
+
+        # PulseAudio
+        [[ -e "$XDG_RUNTIME_DIR/pulse" ]] && bwrap_args+=(
+            --ro-bind "$XDG_RUNTIME_DIR/pulse" "/run/user/$(id -u)/pulse"
+        )
+
+        # PipeWire
+        [[ -e "$XDG_RUNTIME_DIR/pipewire-0" ]] && bwrap_args+=(
+            --ro-bind "$XDG_RUNTIME_DIR/pipewire-0" "/run/user/$(id -u)/pipewire-0"
+        )
+
+        # Wayland socket in runtime dir
+        [[ -n "${WAYLAND_DISPLAY:-}" && -e "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]] && bwrap_args+=(
+            --ro-bind "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" "/run/user/$(id -u)/$WAYLAND_DISPLAY"
+            --setenv WAYLAND_DISPLAY "$WAYLAND_DISPLAY"
+        )
+    fi
+
+    # D-Bus
+    if [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+        local dbus_path="${DBUS_SESSION_BUS_ADDRESS#unix:path=}"
+        dbus_path="${dbus_path%%,*}"
+        [[ -e "$dbus_path" ]] && bwrap_args+=(
+            --ro-bind "$dbus_path" "$dbus_path"
+            --setenv DBUS_SESSION_BUS_ADDRESS "$DBUS_SESSION_BUS_ADDRESS"
+        )
+    fi
+
+    # Environment
+    bwrap_args+=(
+        --setenv HOME "$HOME"
+        --setenv USER "$USER"
+        --setenv PATH "/usr/lib/omnissa/horizon/bin:/usr/lib/omnissa/horizon/client:/usr/bin:/bin:/usr/sbin:/sbin"
+        --setenv LD_LIBRARY_PATH "/usr/lib/omnissa/horizon/lib:/usr/lib/omnissa:/usr/lib/omnissa/gcc"
+        --setenv GDK_BACKEND "x11"
+        --setenv DOTNET_SYSTEM_GLOBALIZATION_INVARIANT "1"
+    )
+    [[ -n "${LANG:-}" ]] && bwrap_args+=(--setenv LANG "$LANG")
+    [[ -n "${LC_ALL:-}" ]] && bwrap_args+=(--setenv LC_ALL "$LC_ALL")
+
+    # Debug: print command if DEBUG is set
+    if [[ -n "${DEBUG:-}" ]]; then
+        echo "bwrap ${bwrap_args[*]} /usr/lib/omnissa/horizon/bin/horizon-client $*" >&2
+    fi
+
+    # Create wrapper script to start arbitrator + client in same sandbox
+    local wrapper
+    wrapper=$(mktemp)
+    if [[ -n "${HORIZON_SHELL_MODE:-}" ]]; then
+        cat > "$wrapper" << 'WRAPPER'
+#!/bin/bash
+echo "=== Horizon Jail Debug Shell ==="
+echo "Horizon binaries: /usr/lib/omnissa/horizon/bin/"
+echo "PATH: $PATH"
+echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+echo ""
+echo "Try these commands:"
+echo "  ls -la /usr/lib/omnissa/horizon/bin/"
+echo "  which horizon-protocol"
+echo "  /usr/lib/omnissa/horizon/bin/horizon-client-next"
+echo ""
+exec /bin/bash
+WRAPPER
+    else
+        cat > "$wrapper" << 'WRAPPER'
+#!/bin/bash
+ARB=/usr/lib/omnissa/horizon/usb/horizon-eucusbarbitrator
+
+cleanup() {
+    [ -n "$ARB_PID" ] && kill "$ARB_PID" 2>/dev/null
+    wait "$ARB_PID" 2>/dev/null
+}
+trap cleanup EXIT INT TERM HUP
+
+# Start USB arbitrator in foreground mode, backgrounded
+if [ -x "$ARB" ]; then
+    "$ARB" --foreground &
+    ARB_PID=$!
+    sleep 0.5
+fi
+
+/usr/lib/omnissa/horizon/bin/horizon-client-next-bundle/horizon-client-next "$@"
+WRAPPER
+    fi
+    chmod +x "$wrapper"
+
+    bwrap_args+=(--ro-bind "$wrapper" /tmp/horizon-wrapper)
+
+    if [[ -n "${STRACE_MODE:-}" ]]; then
+        exec bwrap "${bwrap_args[@]}" strace -f -o /tmp/horizon-strace.log /bin/bash /tmp/horizon-wrapper "$@"
+    else
+        exec bwrap "${bwrap_args[@]}" /bin/bash /tmp/horizon-wrapper "$@"
+    fi
+}
+
+cmd_shell() {
+    HORIZON_SHELL_MODE=1 cmd_run "$@"
+}
+
+case "${1:-}" in
+    import)
+        [[ -n "${2:-}" ]] || die "usage: $0 import <path.deb>"
+        cmd_import "$2"
+        ;;
+    shell)
+        cmd_shell
+        ;;
+    help|--help|-h)
+        echo "Usage: $0 [command]"
+        echo "Commands:"
+        echo "  import <path.deb>  Extract Horizon client deb"
+        echo "  shell              Open debug shell in sandbox"
+        echo "  (no args)          Launch client in sandbox"
+        ;;
+    "")
+        cmd_run
+        ;;
+    *)
+        cmd_run "$@"
+        ;;
+esac
