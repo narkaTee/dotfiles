@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+$LOAD_PATH.unshift("#{Dir.home}/.local/lib/dotfiles")
+require 'cfg'
+Cfg::CLI.run(ARGV)

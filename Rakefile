@@ -34,7 +34,8 @@ task :check => [
   :test_bash,
   :test_zsh,
   :shellcheck,
-  :test_bats
+  :test_bats,
+  :test_cfg
 ]
 
 task :shellcheck do
@@ -108,7 +109,7 @@ task :test_sh do
   end
 end
 
-task :bash => [:test_bash, :sh] do
+task :bash => [:test_bash, :sh, :cfg] do
   ## remove legacy directory
   sh 'rm -rf "$HOME/.bashrc.d"'
   Cfg.directory "#{HOME}/.config/bashrc.d/" do
@@ -296,4 +297,30 @@ task :vscode => :nvim do
       sh "code --install-extension #{ext}"
     end
   end
+end
+
+task :cfg do
+  Cfg.directory "#{HOME}/.local/lib/dotfiles/" do
+    purge
+    source "ruby/lib/"
+  end
+  sh 'install -m 755 ruby/bin/cfg "$HOME/bin/cfg"'
+end
+
+task :test_cfg do
+  begin
+    require 'rspec/core/rake_task'
+  rescue LoadError
+    puts "Warning: rspec not installed, skipping cfg tests"
+    next
+  end
+  test_files = Dir.glob("ruby/lib/cfg/spec/*_spec.rb")
+  if test_files.empty?
+    puts "No cfg spec files found"
+    next
+  end
+  RSpec::Core::RakeTask.new(:_run_cfg_specs) do |t|
+    t.pattern = test_files
+  end
+  Rake::Task[:_run_cfg_specs].invoke
 end
