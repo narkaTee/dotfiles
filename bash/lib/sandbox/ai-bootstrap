@@ -35,60 +35,96 @@ patch_prompt_file() {
 }
 
 build_claude_config() {
-    local tmp_target="$1/.claude"
+    local staging_dir="$1"
     local sandbox_name="$2"
     local source="$HOME/.claude"
-    mkdir -p "$tmp_target"
 
-    local claude_optpl
-    claude_optpl=$(optpl --show-alias claude)
-    if [[ -f "$source/settings.json" ]]; then
-        cp "$source/settings.json" "$tmp_target/"
-    elif [[ -f "$claude_optpl" ]]; then
-        optpl claude > "$tmp_target/settings.json"
+    local selected_profile=""
+    if hash cfg 2>/dev/null && cfg --has-profiles claude 2>/dev/null; then
+        selected_profile=$(cfg --select claude 2>/dev/null) || {
+            echo "cfg: Profile selection cancelled, aborting" >&2
+            exit 1
+        }
     fi
 
-    # Create minimal user config to skip initial setup dialog
-    cat > "$1/.claude.json" <<'EOF'
+    if [[ -n "$selected_profile" ]]; then
+        cfg "$selected_profile" --export-file --base-dir "$staging_dir" 2>/dev/null || true
+    elif [[ -f "$source/settings.json" ]]; then
+        mkdir -p "$staging_dir/.claude"
+        cp "$source/settings.json" "$staging_dir/.claude/"
+    fi
+
+    mkdir -p "$staging_dir/.claude"
+
+    local claude_json="$staging_dir/.claude.json"
+    if [ ! -f "$claude_json" ] || ! jq -e '.hasCompletedOnboarding == true' "$claude_json" >/dev/null 2>&1; then
+        if [ -f "$claude_json" ]; then
+            jq '. + {hasCompletedOnboarding: true, theme: "dark"}' "$claude_json" > "${claude_json}.tmp" && mv "${claude_json}.tmp" "$claude_json"
+        else
+            cat > "$claude_json" <<'EOF'
 {
   "theme": "dark",
   "hasCompletedOnboarding": true
 }
 EOF
+        fi
+    fi
 
-    # I might copy in the original file if it exists but I don't have one.
-    patch_prompt_file "$tmp_target/CLAUDE.md" "$sandbox_name"
+    patch_prompt_file "$staging_dir/.claude/CLAUDE.md" "$sandbox_name"
+
+    echo "$selected_profile" > "$staging_dir/.claude/.cfg_profile"
 }
 
 build_gemini_config() {
-    local tmp_target="$1/.gemini"
+    local staging_dir="$1"
     local sandbox_name="$2"
     local source="$HOME/.gemini"
-    mkdir -p "$tmp_target"
 
-    cp "$source/.env" "$tmp_target"
-    # feels a bit strange, no idea how a compromised token might be revoked.
-    # maybe we'll just go through the setup again for now until I know how tokens can be revoked.
-    #cp "$source/oauth_creds.json" "$tmp_target"
+    local selected_profile=""
+    if hash cfg 2>/dev/null && cfg --has-profiles gemini 2>/dev/null; then
+        selected_profile=$(cfg --select gemini 2>/dev/null) || {
+            echo "cfg: Profile selection cancelled, aborting" >&2
+            exit 1
+        }
+    fi
 
-    patch_prompt_file "$tmp_target/GEMINI.md" "$sandbox_name"
+    if [[ -n "$selected_profile" ]]; then
+        cfg "$selected_profile" --export-file --base-dir "$staging_dir" 2>/dev/null || true
+    elif [[ -f "$source/.env" ]]; then
+        mkdir -p "$staging_dir/.gemini"
+        cp "$source/.env" "$staging_dir/.gemini/"
+    fi
+
+    mkdir -p "$staging_dir/.gemini"
+    patch_prompt_file "$staging_dir/.gemini/GEMINI.md" "$sandbox_name"
+
+    echo "$selected_profile" > "$staging_dir/.gemini/.cfg_profile"
 }
 
 build_opencode_config() {
-    local tmp_target="$1/.config/opencode"
+    local staging_dir="$1"
     local sandbox_name="$2"
     local source="$HOME/.config/opencode"
-    mkdir -p "$tmp_target"
 
-    local opencode_optpl
-    opencode_optpl=$(optpl --show-alias opencode)
-    if [[ -f "$source/opencode.jsonc" ]]; then
-        cp "$source/opencode.jsonc" "$tmp_target/"
-    elif [[ -f "$opencode_optpl" ]]; then
-        optpl opencode > "$tmp_target/opencode.jsonc"
+    local selected_profile=""
+    if hash cfg 2>/dev/null && cfg --has-profiles opencode 2>/dev/null; then
+        selected_profile=$(cfg --select opencode 2>/dev/null) || {
+            echo "cfg: Profile selection cancelled, aborting" >&2
+            exit 1
+        }
     fi
 
-    patch_prompt_file "$tmp_target/AGENT.md" "$sandbox_name"
+    if [[ -n "$selected_profile" ]]; then
+        cfg "$selected_profile" --export-file --base-dir "$staging_dir" 2>/dev/null || true
+    elif [[ -f "$source/opencode.jsonc" ]]; then
+        mkdir -p "$staging_dir/.config/opencode"
+        cp "$source/opencode.jsonc" "$staging_dir/.config/opencode/"
+    fi
+
+    mkdir -p "$staging_dir/.config/opencode"
+    patch_prompt_file "$staging_dir/.config/opencode/AGENT.md" "$sandbox_name"
+
+    echo "$selected_profile" > "$staging_dir/.config/opencode/.cfg_profile"
 }
 
 bootstrap_ai() {
@@ -124,22 +160,23 @@ bootstrap_ai() {
     fi
 
     local temp
-    temp="$(mktemp -p /tmp -d bootstrap-ai-agent-XXXXXXXX)"
+    temp="$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/ai-bootstrap.XXXXXX")"
     # shellcheck disable=SC2064
     trap "rm -rf $temp" exit
 
+    local install_cmd
     case "$agent" in
         claude)
             build_claude_config "$temp" "$name"
-            npm_package="@anthropic-ai/claude-code"
+            install_cmd="curl -fsSL https://claude.ai/install.sh | bash"
             ;;
         gemini)
             build_gemini_config "$temp" "$name"
-            npm_package="@google/gemini-cli"
+            install_cmd="npm -g install @google/gemini-cli"
             ;;
         opencode)
             build_opencode_config "$temp" "$name"
-            npm_package="opencode-ai"
+            install_cmd="npm -g install opencode-ai"
             ;;
         *)
             echo "Unknown agent '$agent'" >&2
@@ -148,18 +185,33 @@ bootstrap_ai() {
     esac
 
     echo "Uploading agent config"
-    scp -r "$temp"/.* "$scp_host:~/"
+    scp "${scp_args[@]}" -r "$temp"/.* "$scp_host:~/"
+
+    if [[ -f "$temp/.claude/.cfg_profile" || -f "$temp/.gemini/.cfg_profile" || -f "$temp/.config/opencode/.cfg_profile" ]]; then
+        local profile_file
+        for profile_file in "$temp"/*/.cfg_profile "$temp"/.config/*/.cfg_profile; do
+            if [[ -f "$profile_file" ]]; then
+                local profile
+                profile=$(<"$profile_file")
+                if [[ -n "$profile" ]] && hash cfg 2>/dev/null; then
+                    echo "Exporting environment variables from profile: $profile"
+                    "${ssh_cmd[@]}" "bash -c 'cat >> ~/.config/setup/env.local.sh'" < <(cfg "$profile" --export-env 2>/dev/null || true)
+                fi
+            fi
+        done
+    fi
+
     rm -rf "$temp"
     echo "Installing/Updating Agent..."
 
-    local max_attempts=30
+    local max_attempts=6
     local attempt=0
     local install_success=false
 
     while [[ $attempt -lt $max_attempts ]]; do
         attempt=$((attempt + 1))
 
-        if "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && source ~/.config/setup/env.sh && npm -g install $npm_package'" 2>/dev/null; then
+        if "${ssh_cmd[@]}" "bash -c 'source ~/.config/setup/tools.sh && source ~/.config/setup/env.sh && $install_cmd'" 2>/dev/null; then
             install_success=true
             break
         fi

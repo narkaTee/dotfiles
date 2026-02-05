@@ -6,14 +6,16 @@ The AI bootstrap library configures AI agent environments inside sandboxes by co
 
 ## Key Constraints & Design Decisions
 
-- **Host credential reuse**: Copies API keys and settings from host's `~/.claude`, `~/.gemini`, or `~/.config/opencode` directories
+- **Host-side credential generation**: Uses [cfg](cfg.md) tool on the host to generate config files with resolved secrets before upload
+- **No 1Password in sandbox**: Sandboxes never need 1Password CLI - all secret resolution happens on host via cfg
+- **Fallback to direct copy**: If cfg profile doesn't exist, falls back to copying existing config files from host
 - **Environment-aware prompts**: Uses prompt-patcher to inject blocks based on `$BACKEND` and `$PROXY` variables
-- **Temporary staging**: Builds config in `/tmp`, uploads via SCP, then cleans up
+- **Temporary staging**: Builds config in `$XDG_RUNTIME_DIR` (fallback to `/tmp`), uploads via SCP, then cleans up
 - **SSH-based upload**: Uses either SSH alias or port-based connection (same logic as `sandbox` command)
-- **Automatic installation**: Installs/updates agent npm packages after config upload
-- **Minimal onboarding**: Creates `.claude.json` to skip initial setup dialogs
+- **Automatic installation**: Installs/updates agent CLI tools after config upload (see [agents.md](agents.md) for install commands)
+- **Minimal onboarding**: Claude bootstrap ensures `~/.claude.json` has required fields to skip initial setup dialogs (see [agents.md](agents.md) for special handling requirements)
 - **Security considerations**: Gemini OAuth credentials intentionally not copied (commented out) due to revocation concerns
-- **Time boxed retry mechnanism when bootstrapping**: Bootstrapping the AI Agent might fail due to the VM setup not beeing completed yet. The install step should retry bootstrapping after 5 seconds for 30 seconds until it succeeds.
+- **Time-boxed retry mechanism**: Agent installation may fail if VM setup incomplete. Retries every 5 seconds for up to 30 seconds until successful.
 
 ## Usage
 
@@ -37,32 +39,27 @@ source ~/.config/lib/bash/sandbox/ai-bootstrap
 bootstrap_ai "sandbox-myproject" "claude"
 ```
 
-## Supported Agents
+## Configuration Process
 
-| Agent | Config Source | Config Target | Prompt File | NPM Package |
-|-------|--------------|---------------|-------------|-------------|
-| `claude` | `~/.claude/settings.json` | `~/.claude/` | `CLAUDE.md` | `@anthropic-ai/claude-code` |
-| `gemini` | `~/.gemini/.env` | `~/.gemini/` | `GEMINI.md` | `@google/gemini-cli` |
-| `opencode` | `~/.config/opencode/opencode.jsonc` | `~/.config/opencode/` | `AGENT.md` | `opencode-ai` |
+For each supported agent, the bootstrap:
+1. Check if cfg profiles exist via `cfg --has-profiles <agent>`
+2a. **If profiles exist**: Run `cfg --select <agent>` to select profile (abort if cancelled)
+2b. **If no profiles exist**: Skip cfg, fall back to copying existing config files from host `~/.claude/`, `~/.gemini/`, etc. (if they exist)
+3. Creates staging directory on host: `mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/ai-bootstrap.XXXXXX"`
+4. If profile selected: Generate credential files using `cfg <profile> --export-file --base-dir <staging-dir>` (exports all files with preserved paths)
+5. Ensures agent-specific preference files have required fields (see [agents.md](agents.md) Special Handling for implementation):
+   - Claude: Patches/creates `~/.claude.json` to ensure `hasCompletedOnboarding: true`
+6. Patches agent's prompt file in staging directory with environment blocks using [prompt-patcher](prompt-patcher.md)
+7. Uploads entire staging directory to sandbox home via SCP (`scp -r <staging>/.* <sandbox>:~/`)
+8. If profile selected: Appends environment variables to sandbox's `~/.config/setup/env.local.sh` via SSH using `cfg <profile> --export-env`
+9. Installs/updates agent CLI tool in sandbox (runs install command from [agents.md](agents.md) with retry logic)
+10. Cleanup: trap removes staging directory on host exit
 
-## Configuration Behavior
+**Modes:**
+- **With cfg credentials**: When cfg profiles exist, exports credentials and env vars via cfg
+- **Fallback mode**: When no cfg profiles exist, copies existing config files from host (if available)
 
-**Claude Code (`build_claude_config`):**
-1. Creates `~/.claude/` directory
-2. Copies `settings.json` from host (or uses `optpl` template if available)
-3. Creates `.claude.json` with `hasCompletedOnboarding: true` to skip setup
-4. Patches `CLAUDE.md` with blocks using [prompt-patcher](prompt-patcher.md)
-
-**Gemini (`build_gemini_config`):**
-1. Creates `~/.gemini/` directory
-2. Copies `.env` file from host
-3. Does NOT copy `oauth_creds.json` (security concern)
-4. Patches `GEMINI.md` with blocks using [prompt-patcher](prompt-patcher.md)
-
-**OpenCode (`build_opencode_config`):**
-1. Creates `~/.config/opencode/` directory
-2. Copies `opencode.jsonc` from host (or uses `optpl` template if available)
-3. Patches `AGENT.md` with blocks using [prompt-patcher](prompt-patcher.md)
+See [agents.md](agents.md) for agent-specific paths, credential files, and install commands.
 
 ## Prompt Patching Logic
 
@@ -90,9 +87,11 @@ Proxy restrictions:
 - [prompt-patcher library](prompt-patcher.md)
 - [sandbox-common library](sandbox-common.md) (for `is_ssh_alias_setup`, `backend_get_ssh_port`)
 - Running sandbox with SSH access
+- Dotfiles with `~/.config/setup/env.local.sh` hook in sandbox
 
 **Optional:**
-- `optpl` command for config templates (falls back to copying existing files)
+- [cfg](cfg.md) command for config templates (falls back to copying existing files, if they exist)
+- 1Password CLI (`op`) - only needed on host if using cfg
 
 **Runtime (installed by bootstrap):**
 - Node.js and npm (must be available in sandbox)
@@ -117,10 +116,11 @@ Proxy restrictions:
 - `$BACKEND` - Determines which sandbox constraint blocks to inject
 - `$PROXY` - Controls proxy-restrictions block injection
 
-**Installation process:**
-1. Sources host environment setup scripts (`~/.config/setup/tools.sh`, `~/.config/setup/env.sh`)
-2. Runs `npm -g install <package>` to install/update agent
-3. Assumes sandbox has Node.js/npm pre-installed
+**Installation process (runs in sandbox):**
+1. Sources sandbox environment setup scripts (`~/.config/setup/tools.sh`, `~/.config/setup/env.sh`)
+2. Runs install command from [agents.md](agents.md) for the specific agent
+3. Retries every 5 seconds for up to 30 seconds if installation fails (VM may still be initializing)
+4. Environment variables from step 8 of Configuration Process are automatically loaded when shell starts
 
 ## Error Handling
 
@@ -134,5 +134,6 @@ Proxy restrictions:
 
 **Missing source configs:**
 - No explicit error checking for missing host config directories
-- Falls back to `optpl` for Claude/OpenCode if `settings.json`/`opencode.jsonc` missing
+- Falls back to `cfg` for Claude/Gemini/OpenCode if existing config files are missing
+- If both cfg profile and existing config file are missing, config generation is skipped
 - May fail during npm install if credentials not properly configured

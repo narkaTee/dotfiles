@@ -8,12 +8,18 @@ This directory contains detailed specifications for each component in the dotfil
 |-----------|-----------|---------------|-------------|
 | Rakefile DSL | [rakefile-dsl.md](rakefile-dsl.md) | `lib/`, `Rakefile` | Ruby-based build system with custom DSL for managing configuration files |
 
+## AI Agent Metadata
+
+| Component | Spec File | Description |
+|-----------|-----------|-------------|
+| Agents | [agents.md](agents.md) | Centralized metadata for AI coding agents (Claude, Gemini, OpenCode) - config paths, credential files, prompt files |
+
 ## Development Tools
 
 | Tool | Spec File | Code Location | Description |
 |------|-----------|---------------|-------------|
 | cfg | [cfg.md](cfg.md) | `bin/cfg`, `lib/cfg/` | Encrypted configuration manager using SSH agent signing and 1Password for secure multi-config management |
-| optpl | [optpl.md](optpl.md) | `bash/bin/optpl` | 1Password template injector for secure credential management |
+| optpl | [optpl.md](optpl.md) | `bash/bin/optpl` | 1Password template injector for secure credential management (superseeded with cfg) |
 | boxed | [boxed.md](boxed.md) | `bash/boxed/` | Lightweight bubblewrap-based sandboxing with profile-based configuration |
 | ↳ npm Profile | [boxed-npm.md](boxed-npm.md) | `bash/boxed/profiles.d/npm` | npm package operations with network and cache persistence |
 | ↳ ai-jail Profile | [boxed-ai-jail.md](boxed-ai-jail.md) | `bash/boxed/profiles.d/ai-jail` | AI agent sandbox with config isolation and prompt injection |
@@ -47,6 +53,13 @@ When working with features:
 ## Contributing
 
 When working with a spec (Creating, Updating, Reviewing) use these guidelines: [how-to-write-specs.md](how-to-write-specs.md).
+
+**Specs are the source of truth. Update the spec before updating code.**
+
+When fixing bugs or adding features:
+1. Update spec to document correct behavior
+2. Update/add tests
+3. Implement code changes
 
 When adding a new features or specs:
 1. Create or update a spec using the guidelines
