@@ -4,19 +4,10 @@ require_relative 'spec_helper'
 require 'cfg'
 
 RSpec.describe Cfg::Runner do
-  include_context 'with ephemeral agent'
   include_context 'with temp cfg dir'
 
-  around do |example|
-    original_sock = ENV['SSH_AUTH_SOCK']
-    ENV['SSH_AUTH_SOCK'] = agent_env['SSH_AUTH_SOCK']
-    example.run
-  ensure
-    ENV['SSH_AUTH_SOCK'] = original_sock
-  end
-
   let!(:profile) do
-    Cfg::Profiles.create_profile('test.runner', 'Runner Test', nil, key_suffix, public_key)
+    Cfg::Profiles.create_profile('test.runner', 'Runner Test', nil)
   end
 
   describe '.expand_path' do
@@ -110,7 +101,7 @@ RSpec.describe Cfg::Runner do
   end
 
   describe '.run_command' do
-    let(:test_target) { File.join(temp_cfg_dir, 'test-target.txt') }
+    let(:test_target) { File.join(test_repo_path, 'test-target.txt') }
 
     before do
       allow(described_class).to receive(:resolve_with_op_inject) do |_profile, content|

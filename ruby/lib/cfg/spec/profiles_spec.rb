@@ -4,16 +4,7 @@ require_relative 'spec_helper'
 require 'cfg'
 
 RSpec.describe Cfg::Profiles do
-  include_context 'with ephemeral agent'
   include_context 'with temp cfg dir'
-
-  around do |example|
-    original_sock = ENV['SSH_AUTH_SOCK']
-    ENV['SSH_AUTH_SOCK'] = agent_env['SSH_AUTH_SOCK']
-    example.run
-  ensure
-    ENV['SSH_AUTH_SOCK'] = original_sock
-  end
 
   describe '.list_profiles' do
     context 'with no profiles' do
@@ -25,7 +16,7 @@ RSpec.describe Cfg::Profiles do
 
     context 'with profiles' do
       before do
-        described_class.create_profile('test.work', 'Test Work', 'work', key_suffix, public_key)
+        described_class.create_profile('test.work', 'Test Work', 'work')
       end
 
       it 'returns array of Profile structs' do
@@ -39,54 +30,43 @@ RSpec.describe Cfg::Profiles do
 
   describe '.create_profile' do
     it 'creates a new profile' do
-      profile = described_class.create_profile('claude.work', 'Work Claude', 'work', key_suffix, public_key)
+      profile = described_class.create_profile('claude.work', 'Work Claude', 'work')
 
       expect(profile.name).to eq('claude.work')
       expect(profile.description).to eq('Work Claude')
       expect(profile.op_account).to eq('work')
-      expect(profile.suffix).to eq(key_suffix)
       expect(profile.outputs).to eq([])
     end
 
-    it 'adds suffix to index with comment stripped from public key' do
-      described_class.create_profile('test.profile', 'Test', nil, key_suffix, public_key)
-
-      index = Cfg::Storage.load_index
-      expect(index[:index]).to have_key(key_suffix.to_sym)
-      # Comment should be stripped - only type + key stored
-      expected_key = public_key.split[0..1].join(' ')
-      expect(index[:index][key_suffix.to_sym][:ssh_public_key]).to eq(expected_key)
-    end
-
     it 'raises ProfileExistsError for duplicate name' do
-      described_class.create_profile('dupe.test', 'Test', nil, key_suffix, public_key)
+      described_class.create_profile('dupe.test', 'Test', nil)
 
       expect do
-        described_class.create_profile('dupe.test', 'Another', nil, key_suffix, public_key)
+        described_class.create_profile('dupe.test', 'Another', nil)
       end.to raise_error(Cfg::ProfileExistsError)
     end
 
     it 'raises InvalidProfileNameError for names with spaces' do
       expect do
-        described_class.create_profile('claude - work', 'Test', nil, key_suffix, public_key)
+        described_class.create_profile('claude - work', 'Test', nil)
       end.to raise_error(Cfg::InvalidProfileNameError)
     end
 
     it 'raises InvalidProfileNameError for names starting with special chars' do
       expect do
-        described_class.create_profile('.hidden', 'Test', nil, key_suffix, public_key)
+        described_class.create_profile('.hidden', 'Test', nil)
       end.to raise_error(Cfg::InvalidProfileNameError)
     end
 
     it 'allows valid names with dots, hyphens, underscores' do
-      profile = described_class.create_profile('claude.work-v2_test', 'Test', nil, key_suffix, public_key)
+      profile = described_class.create_profile('claude.work-v2_test', 'Test', nil)
       expect(profile.name).to eq('claude.work-v2_test')
     end
   end
 
   describe '.get_profile' do
     it 'returns profile by name' do
-      described_class.create_profile('find.me', 'Find Me', 'personal', key_suffix, public_key)
+      described_class.create_profile('find.me', 'Find Me', 'personal')
 
       profile = described_class.get_profile('find.me')
       expect(profile.name).to eq('find.me')
@@ -102,7 +82,7 @@ RSpec.describe Cfg::Profiles do
 
   describe '.update_profile' do
     let!(:profile) do
-      described_class.create_profile('update.me', 'Original', 'old', key_suffix, public_key)
+      described_class.create_profile('update.me', 'Original', 'old')
     end
 
     it 'updates description' do
@@ -118,7 +98,7 @@ RSpec.describe Cfg::Profiles do
 
   describe '.delete_profile' do
     it 'removes profile and its templates' do
-      profile = described_class.create_profile('delete.me', 'Delete Me', nil, key_suffix, public_key)
+      profile = described_class.create_profile('delete.me', 'Delete Me', nil)
       described_class.add_file_template(profile, '~/.config/test', 'content')
 
       described_class.delete_profile('delete.me')
@@ -131,7 +111,7 @@ RSpec.describe Cfg::Profiles do
 
   describe 'template operations' do
     let!(:profile) do
-      described_class.create_profile('templates.test', 'Test', nil, key_suffix, public_key)
+      described_class.create_profile('templates.test', 'Test', nil)
     end
 
     describe '.add_file_template' do
@@ -193,7 +173,7 @@ RSpec.describe Cfg::Profiles do
     end
 
     describe '.get_output_content' do
-      it 'returns decrypted content' do
+      it 'returns content' do
         updated = described_class.add_file_template(profile, '~/.test', 'secret content')
         content = described_class.get_output_content(updated, updated.outputs.first)
         expect(content).to eq('secret content')

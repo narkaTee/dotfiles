@@ -5,23 +5,22 @@ require 'cfg'
 require 'stringio'
 
 RSpec.describe Cfg::CLI do
-  include_context 'with ephemeral agent'
-  include_context 'with temp cfg dir'
-
+  let(:test_repo_path) { Dir.mktmpdir }
+  let(:profiles_dir) { File.join(test_repo_path, 'profiles') }
+  let(:templates_dir) { File.join(test_repo_path, 'templates') }
   let(:mock_picker) { instance_double(Proc) }
 
-  around do |example|
-    original_sock = ENV['SSH_AUTH_SOCK']
-    ENV['SSH_AUTH_SOCK'] = agent_env['SSH_AUTH_SOCK']
+  before do
+    stub_const('Cfg::Storage::REPO_PATH', test_repo_path)
+    stub_const('Cfg::Storage::PROFILES_DIR', profiles_dir)
+    stub_const('Cfg::Storage::TEMPLATES_DIR', templates_dir)
 
-    # Mock selector picker
     original_picker = Cfg::Selector.picker
     Cfg::Selector.picker = mock_picker
+  end
 
-    example.run
-  ensure
-    ENV['SSH_AUTH_SOCK'] = original_sock
-    Cfg::Selector.picker = original_picker
+  after do
+    FileUtils.rm_rf(test_repo_path)
   end
 
   def capture_output
@@ -61,13 +60,14 @@ RSpec.describe Cfg::CLI do
 
     context 'with profiles' do
       before do
-        Cfg::Profiles.create_profile('test.profile', 'Test Profile', nil, key_suffix, public_key)
+        Cfg::Profiles.create_profile('test.profile', 'Test Profile', nil)
       end
 
       it 'lists profiles' do
         stdout, = capture_output { described_class.run(['list']) }
         expect(stdout).to include('test.profile')
         expect(stdout).to include('Test Profile')
+        expect(stdout).not_to include('Key')
       end
 
       it 'works with ls alias' do
@@ -79,9 +79,6 @@ RSpec.describe Cfg::CLI do
 
   describe 'add' do
     it 'creates a new profile' do
-      # Mock SSH key selection
-      allow(mock_picker).to receive(:call).and_return(nil) # Not called for single key
-
       stdout, = capture_output do
         described_class.run(['add', 'new.profile', '-d', 'New Profile'])
       end
@@ -91,11 +88,23 @@ RSpec.describe Cfg::CLI do
       profile = Cfg::Profiles.get_profile('new.profile')
       expect(profile.description).to eq('New Profile')
     end
+
+    it 'creates a profile with op_account' do
+      stdout, = capture_output do
+        described_class.run(['add', 'work.profile', '-d', 'Work Profile', '-a', 'myaccount'])
+      end
+
+      expect(stdout).to include('Created profile: work.profile')
+
+      profile = Cfg::Profiles.get_profile('work.profile')
+      expect(profile.description).to eq('Work Profile')
+      expect(profile.op_account).to eq('myaccount')
+    end
   end
 
   describe 'show' do
     before do
-      Cfg::Profiles.create_profile('show.test', 'Show Test', 'myaccount', key_suffix, public_key)
+      Cfg::Profiles.create_profile('show.test', 'Show Test', 'myaccount')
     end
 
     it 'shows profile YAML' do
@@ -108,7 +117,7 @@ RSpec.describe Cfg::CLI do
 
   describe 'delete' do
     before do
-      Cfg::Profiles.create_profile('delete.test', 'Delete Test', nil, key_suffix, public_key)
+      Cfg::Profiles.create_profile('delete.test', 'Delete Test', nil)
     end
 
     it 'deletes a profile' do
@@ -121,10 +130,21 @@ RSpec.describe Cfg::CLI do
     end
   end
 
+  describe 'sync' do
+    it 'syncs with remote repository' do
+      allow(Cfg::Git).to receive(:pull!)
+
+      stdout, = capture_output { described_class.run(['sync']) }
+
+      expect(Cfg::Git).to have_received(:pull!)
+      expect(stdout).to include('Synced with remote')
+    end
+  end
+
   describe '--select' do
     before do
-      Cfg::Profiles.create_profile('claude.work', 'Work', nil, key_suffix, public_key)
-      Cfg::Profiles.create_profile('claude.personal', 'Personal', nil, key_suffix, public_key)
+      Cfg::Profiles.create_profile('claude.work', 'Work', nil)
+      Cfg::Profiles.create_profile('claude.personal', 'Personal', nil)
     end
 
     it 'returns exact match' do
@@ -150,9 +170,9 @@ RSpec.describe Cfg::CLI do
 
     context 'with profiles' do
       before do
-        Cfg::Profiles.create_profile('claude.work', 'Work', nil, key_suffix, public_key)
-        Cfg::Profiles.create_profile('claude.personal', 'Personal', nil, key_suffix, public_key)
-        Cfg::Profiles.create_profile('gemini.test', 'Gemini Test', nil, key_suffix, public_key)
+        Cfg::Profiles.create_profile('claude.work', 'Work', nil)
+        Cfg::Profiles.create_profile('claude.personal', 'Personal', nil)
+        Cfg::Profiles.create_profile('gemini.test', 'Gemini Test', nil)
       end
 
       it 'exits 0 when profiles exist for prefix' do
@@ -183,7 +203,7 @@ RSpec.describe Cfg::CLI do
 
   describe 'import' do
     before do
-      Cfg::Profiles.create_profile('import.test', 'Import Test', nil, key_suffix, public_key)
+      Cfg::Profiles.create_profile('import.test', 'Import Test', nil)
     end
 
     it 'imports a file as template' do
@@ -203,24 +223,6 @@ RSpec.describe Cfg::CLI do
       expect(profile.outputs.first.target).to eq('~/.config/test.txt')
 
       temp_file.unlink
-    end
-  end
-
-  describe 'rotate-key' do
-    let(:second_key_suffix) { nil }
-    let(:second_public_key) { nil }
-
-    before do
-      # Create a profile with the first key
-      Cfg::Profiles.create_profile('rotate.test', 'Rotate Test', nil, key_suffix, public_key)
-      profile = Cfg::Profiles.get_profile('rotate.test')
-      Cfg::Profiles.add_file_template(profile, '~/.config/test', 'secret content')
-    end
-
-    it 'requires both keys to be loaded' do
-      expect do
-        capture_output { described_class.run(['rotate-key', key_suffix, 'newkey']) }
-      end.to raise_error(SystemExit)
     end
   end
 end

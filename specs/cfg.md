@@ -1,8 +1,10 @@
-# Encrypted Configuration Manager (cfg)
+# Configuration Manager (cfg)
 
 ## Overview
 
-The `cfg` tool manages encrypted configuration templates that can be safely committed to the dotfiles repository. It uses SSH agent signing to derive encryption keys (via OpenSSL AES-256-CBC) and 1Password CLI for secret resolution. Templates contain only `op://` references - actual secrets never leave 1Password.
+The `cfg` tool manages configuration templates stored in a private git repository. It uses 1Password CLI for secret resolution. Templates contain only `op://` references - actual secrets never leave 1Password.
+
+**Private repository:** `git@github.com:narkaTee/cfgs.git` (hardcoded in tool)
 
 ## Testing Requirements
 
@@ -46,6 +48,9 @@ cfg codex.work --export-file --base-dir /tmp/overlay/
 
 # Interactive selection, return selected profile name (for automation)
 cfg --select claude
+
+# Sync with remote repository (explicit git pull)
+cfg sync
 ```
 
 **Execution modes:**
@@ -69,114 +74,126 @@ cfg --select claude
 ### Management commands
 
 ```bash
-# List available configs (shows name, description, key suffix)
+# List available configs (shows name, description)
 cfg list
 cfg ls
 
-# Create new config
-# If multiple Ed25519 keys loaded: fzf selection showing "suffix - comment"
-# If one key: uses that key automatically
-# Note: comment is shown during selection but NOT stored in index.yaml
+# Create new config (auto-commits & pushes)
 cfg add claude.personal
 
-# Import existing file as template (auto-generates hashed filename)
+# Import existing file as template (auto-generates hashed filename, auto-commits & pushes)
 # If profile already has a template with same target path, replaces it
 cfg import claude.work ~/.claude/config.json
 
-# Show decrypted profile as raw YAML
+# Show profile as raw YAML
 cfg show claude.work
 
-# Show decrypted template content (fzf selection if multiple files)
+# Show template content (fzf selection if multiple files)
 cfg show claude.work file
 cfg show claude.work env
 
-# Edit profile metadata (description, op_account)
+# Edit profile metadata (description, op_account) - auto-commits & pushes
 cfg edit claude.work
 
-# Edit file template (fzf selection if multiple, prompts for target path if none exist)
+# Edit file template (fzf selection if multiple, prompts for target path if none exist) - auto-commits & pushes
 cfg edit claude.work file
 
-# Edit env template (creates if none exists)
+# Edit env template (creates if none exists) - auto-commits & pushes
 cfg edit claude.work env
 
-# Delete entire profile (also removes its template files)
+# Delete entire profile (also removes its template files) - auto-commits & pushes
 cfg delete claude.work
 
-# Delete file template from profile (fzf selection if multiple)
+# Delete file template from profile (fzf selection if multiple) - auto-commits & pushes
 cfg delete claude.work file
 
-# Delete env template from profile
+# Delete env template from profile - auto-commits & pushes
 cfg delete claude.work env
-
-# Rotate SSH key (both keys must be loaded in agent)
-cfg rotate-key a1b2c3 d4e5f6
 ```
 
-## File Formats
+## Repository Structure
 
-Stores files in ~/dotfiles/cfg/
+Private repository cloned to `~/.local/share/cfg/` (local working copy).
 
 ```
-cfg/{index.yaml, profiles-<suffix>.enc, configs/<suffix>/*.enc}
+~/.local/share/cfg/
+  .git/
+  profiles/
+    claude.work.yaml
+    codex.personal.yaml
+  templates/
+    b4c6d2e.json       # hashed filenames
+    f7a3c5b.env
 ```
 
-`<suffix>` = first 6 hex characters of SHA-256 hash of the SSH public key (filename-safe).
-
-### Index file (index.yaml)
+### Profile files (plaintext YAML)
 
 ```yaml
-# index.yaml (unencrypted, committed to git)
-encryption:
-  namespace: cfg-secrets-v1
-
-index:
-  a1b2c3:  # suffix = first 6 hex chars of SHA-256 hash of public key
-    ssh_public_key: "ssh-ed25519 AAAAC3..."  # comment stripped for privacy
-    profiles_file: profiles-a1b2c3.enc
+# profiles/claude.work.yaml
+description: Work Claude config
+op_account: work  # optional, passed to op --account
+outputs:
+  - template: b4c6d2e.json  # references templates/ by hashed filename
+    type: file
+    target: ~/.claude/config.json
+  - template: f7a3c5b.env
+    type: env  # dotenv format, resolved via op run
 ```
 
-**Multi-key behavior:**
-- No matching keys → error
-- One matching key → load that collection
-- Multiple matching keys → merge all collections (profile names must be unique)
+### Template files (plaintext with op:// references)
 
-### Profile and template files (encrypted)
+```bash
+# templates/f7a3c5b.env
+ANTHROPIC_API_KEY=op://work/claude-api/credential
+OPENAI_API_KEY=op://work/openai/api-key
+```
 
-```yaml
-# profiles-a1b2c3.enc (encrypted) → configs/a1b2c3/*.enc
-codex.work:
-  description: Work Codex
-  op_account: work  # optional, passed to op --account
-  outputs:
-    - template: b4c6d2e.enc
-      type: file
-      target: ~/.codex/config.toml
-    - template: f7a3c5b.enc
-      type: env  # dotenv format, resolved via op run
-# Template content uses op:// refs: ANTHROPIC_API_KEY=op://work/claude-api/credential
+```json
+# templates/b4c6d2e.json
+{
+  "api_key": "op://work/claude-api/credential",
+  "model": "claude-sonnet-4.5"
+}
 ```
 
 **Template types:**
 - `type: env`: Dotenv format, resolved via `op run`
+  - No `target` field (env vars loaded into process environment)
+  - Template filename uses `.env` extension (e.g., `abc123.env`)
 - `type: file`: Any format, resolved via `op inject`, written to `target` path
+  - Requires `target` field (absolute path where file will be written)
+  - Template filename extension should match target file type (e.g., `abc123.json`, `xyz789.toml`)
 
-## Encryption
+## Git Synchronization
 
-**Key derivation:** Sign namespace `cfg-secrets-v1` via SSH agent → SHA-256 hash → AES-256-CBC key.
+**Initial clone:**
+- On first operation (or `cfg sync`), clone repo from `REPO_URL` to `REPO_PATH`
+- After successful clone, run `git github` to configure author info
+- If `git github` fails: warn but continue (repo still usable)
 
-**Algorithm:** OpenSSL AES-256-CBC with raw 256-bit key, base64-encoded output.
+**Auto-pull (periodic):**
+- Before any operation, check if local repo is >2 hours old
+- If stale: `git pull --rebase`
+- If pull fails or conflicts: warn and continue with local state
+- If uncommitted local changes: skip pull and warn
 
-**Constraints:**
-- Only Ed25519 keys supported (deterministic signatures required)
-- Private key never leaves the SSH agent
+**Auto-commit & push:**
+- After successful edit operations (`add`, `edit`, `import`, `delete`)
+- Commit message format: `cfg: <action> <profile>`
+  - Example: `cfg: Edit profile claude.work`
+  - Example: `cfg: Add profile codex.personal`
+- Automatic `git push origin main` after commit
+- If push fails: warn but don't block (changes remain committed locally)
 
-**Portability:** Same SSH key on any machine produces identical encryption key. Create configs on laptop → commit to git → pull on server → decrypt.
+**Manual sync:**
+- `cfg sync` - explicit `git pull` anytime
 
 ## Security Model
 
-**What's visible vs encrypted:**
-- Visible: SSH public keys (in index.yaml)
-- Encrypted: Profile names, descriptions, template references, all config content
+**Private repository:**
+- Profiles and templates stored in private git repo (not encrypted)
+- Access controlled via GitHub SSH keys
+- Templates contain only `op://vault/item/field` references (no actual secrets)
 
 **Secrets never on disk:**
 - Templates contain only `op://vault/item/field` references
@@ -195,13 +212,9 @@ codex.work:
 - When running commands, fails if target files already exist (prevents overwrites)
 - Injected files automatically removed after command exits (via trap)
 
-**Key rotation:**
-- `cfg rotate-key <old-suffix> <new-suffix>` re-encrypts profiles and templates
-- Both keys must be loaded in agent during rotation
-
 ## Installation
 
-Installed via `rake cfg` (or as part of `rake bash`).
+Installed via `rake cfg`
 
 **Source layout:**
 ```
@@ -209,8 +222,8 @@ bin/cfg           # Entry point script
 lib/cfg.rb        # Module definition + require_relative for all submodules
 lib/cfg/
   cli.rb          # CLI dispatcher
-  crypto.rb       # SSH agent signing, AES encryption
-  storage.rb      # Index/profile file I/O
+  git.rb          # Git operations (clone, pull, commit, push)
+  storage.rb      # Profile/template file I/O
   profiles.rb     # Profile CRUD operations
   selector.rb     # fzf picker abstraction
   runner.rb       # Command execution, op integration
@@ -221,9 +234,11 @@ lib/cfg/
 ```ruby
 module Cfg
   class Error < StandardError; end
+  REPO_URL = "git@github.com:narkaTee/cfgs.git"
+  REPO_PATH = File.join(Dir.home, ".local/share/cfg")
 end
 
-require_relative 'cfg/crypto'
+require_relative 'cfg/git'
 require_relative 'cfg/storage'
 require_relative 'cfg/profiles'
 require_relative 'cfg/selector'
@@ -250,10 +265,20 @@ Cfg::CLI.run(ARGV)
 ## Dependencies
 
 - Ruby (stdlib only - `yaml`, `open3`, `optparse`, `fileutils`)
-- `openssl` - AES-256-CBC encryption
+- `git` - repository management
 - `op` (1Password CLI) - secret resolution
 - `fzf` - interactive selection
-- SSH agent with Ed25519 key loaded
+- SSH key with GitHub access to private repo
+
+## Bootstrap
+
+**First-time setup:**
+```bash
+rake cfg              # Installs tool
+cfg sync              # Clones private repo from hardcoded URL
+```
+
+If repo doesn't exist locally, first operation will auto-clone.
 
 ## Integration Points
 

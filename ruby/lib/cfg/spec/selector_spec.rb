@@ -4,22 +4,17 @@ require_relative 'spec_helper'
 require 'cfg'
 
 RSpec.describe Cfg::Selector do
-  include_context 'with ephemeral agent'
   include_context 'with temp cfg dir'
 
   # Mock picker for testing
   let(:mock_picker) { instance_double(Proc) }
 
   around do |example|
-    original_sock = ENV['SSH_AUTH_SOCK']
-    ENV['SSH_AUTH_SOCK'] = agent_env['SSH_AUTH_SOCK']
-
     # Save and restore picker
     original_picker = described_class.picker
     described_class.picker = mock_picker
     example.run
   ensure
-    ENV['SSH_AUTH_SOCK'] = original_sock
     described_class.picker = original_picker
   end
 
@@ -43,9 +38,9 @@ RSpec.describe Cfg::Selector do
 
   describe '.select_profile' do
     before do
-      Cfg::Profiles.create_profile('claude.work', 'Work Claude', nil, key_suffix, public_key)
-      Cfg::Profiles.create_profile('claude.personal', 'Personal Claude', nil, key_suffix, public_key)
-      Cfg::Profiles.create_profile('codex.work', 'Work Codex', nil, key_suffix, public_key)
+      Cfg::Profiles.create_profile('claude.work', 'Work Claude', nil)
+      Cfg::Profiles.create_profile('claude.personal', 'Personal Claude', nil)
+      Cfg::Profiles.create_profile('codex.work', 'Work Codex', nil)
     end
 
     it 'returns exact match without picker' do
@@ -80,7 +75,7 @@ RSpec.describe Cfg::Selector do
     end
 
     it 'handles profile without description (fzf trims trailing space)' do
-      Cfg::Profiles.create_profile('nodesc.test', nil, nil, key_suffix, public_key)
+      Cfg::Profiles.create_profile('nodesc.test', nil, nil)
       # fzf may return trimmed string without trailing space
       allow(mock_picker).to receive(:call).and_return('nodesc.test -')
       result = described_class.select_profile('nodesc')
@@ -88,33 +83,6 @@ RSpec.describe Cfg::Selector do
     end
   end
 
-  describe '.select_ssh_key' do
-    it 'returns single key suffix without picker' do
-      keys = [[public_key, key_suffix]]
-      result = described_class.select_ssh_key(keys)
-      expect(result).to eq(key_suffix)
-    end
-
-    it 'returns nil for empty keys' do
-      result = described_class.select_ssh_key([])
-      expect(result).to be_nil
-    end
-
-    it 'calls picker for multiple keys showing suffix and comment' do
-      keys = [
-        ['ssh-ed25519 AAAA...abc123 work@laptop', 'abc123'],
-        ['ssh-ed25519 BBBB...def456 personal@desktop', 'def456']
-      ]
-      allow(mock_picker).to receive(:call).and_return('def456 - personal@desktop')
-
-      result = described_class.select_ssh_key(keys)
-      expect(result).to eq('def456')
-      expect(mock_picker).to have_received(:call).with(
-        ['abc123 - work@laptop', 'def456 - personal@desktop'],
-        'Select SSH key:'
-      )
-    end
-  end
 
   describe '.select_file_target' do
     it 'returns single target without picker' do

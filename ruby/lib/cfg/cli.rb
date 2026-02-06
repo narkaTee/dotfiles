@@ -25,8 +25,8 @@ module Cfg
         cmd_edit(argv[1..])
       when 'delete'
         cmd_delete(argv[1..])
-      when 'rotate-key'
-        cmd_rotate_key(argv[1..])
+      when 'sync'
+        cmd_sync(argv[1..])
       when '--select'
         cmd_select(argv[1..])
       when '--has-profiles'
@@ -53,7 +53,7 @@ module Cfg
           show <profile> [file|env]  Show profile or template content
           edit <profile> [file|env]  Edit profile or template
           delete <profile> [file|env]  Delete profile or template
-          rotate-key <old> <new>  Rotate encryption key
+          sync                  Sync with remote repository
 
         Execution:
           <profile> <cmd...>    Run command with profile applied
@@ -77,10 +77,10 @@ module Cfg
       end
 
       rows = profiles.map do |p|
-        [p.name, p.description || '', p.suffix]
+        [p.name, p.description || '']
       end
 
-      UI.puts_table(rows, headers: %w[Name Description Key])
+      UI.puts_table(rows, headers: %w[Name Description])
     end
 
     def cmd_add(args)
@@ -94,20 +94,10 @@ module Cfg
       name = args.shift
       abort 'Usage: cfg add <profile> [-d description] [-a account]' unless name
 
-      keys = Crypto.list_agent_keys
-      raise KeyNotFoundError, 'No Ed25519 keys found in SSH agent' if keys.empty?
-
-      suffix = Selector.select_ssh_key(keys)
-      raise Error, 'No key selected' unless suffix
-
-      pubkey_line, = keys.find { |_, s| s == suffix }
-
       profile = Profiles.create_profile(
         name,
         opts[:description],
-        opts[:op_account],
-        suffix,
-        pubkey_line
+        opts[:op_account]
       )
 
       puts "Created profile: #{profile.name}"
@@ -198,49 +188,9 @@ module Cfg
       end
     end
 
-    def cmd_rotate_key(args)
-      old_suffix = args.shift
-      new_suffix = args.shift
-      abort 'Usage: cfg rotate-key <old-suffix> <new-suffix>' unless old_suffix && new_suffix
-
-      keys = Crypto.list_agent_keys
-      old_key_data = keys.find { |_, s| s == old_suffix }
-      new_key_data = keys.find { |_, s| s == new_suffix }
-
-      raise KeyNotFoundError, "Old key not found: #{old_suffix}" unless old_key_data
-      raise KeyNotFoundError, "New key not found: #{new_suffix}" unless new_key_data
-
-      old_key = Crypto.derive_key(old_key_data[0])
-      new_key = Crypto.derive_key(new_key_data[0])
-
-      # Re-encrypt profiles
-      profiles = Storage.load_profiles(old_suffix, old_key)
-      Storage.save_profiles(new_suffix, profiles, new_key)
-
-      # Re-encrypt templates
-      config_dir = Storage.config_dir(old_suffix)
-      if Dir.exist?(config_dir)
-        Dir.glob(File.join(config_dir, '*.enc')).each do |file|
-          content = Storage.load_template(old_suffix, File.basename(file), old_key)
-          Storage.save_template(new_suffix, File.basename(file), content, new_key)
-        end
-      end
-
-      # Update index
-      index = Storage.load_index
-      index[:index].delete(old_suffix.to_sym)
-      # Store public key without comment (first two parts only: type + key)
-      pubkey_without_comment = new_key_data[0].split[0..1].join(' ')
-      index[:index][new_suffix.to_sym] = {
-        ssh_public_key: pubkey_without_comment,
-        profiles_file: "profiles-#{new_suffix}.enc"
-      }
-      Storage.save_index(index)
-
-      # Clean up old files
-      Storage.delete_suffix_data(old_suffix)
-
-      puts "Rotated key from #{old_suffix} to #{new_suffix}"
+    def cmd_sync(args)
+      Git.pull!
+      puts 'Synced with remote'
     end
 
     def cmd_select(args)

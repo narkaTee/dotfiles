@@ -4,162 +4,158 @@ require_relative 'spec_helper'
 require 'cfg'
 
 RSpec.describe Cfg::Storage do
-  include_context 'with ephemeral agent'
-  include_context 'with temp cfg dir'
+  let(:test_repo_path) { Dir.mktmpdir }
+  let(:profiles_dir) { File.join(test_repo_path, 'profiles') }
+  let(:templates_dir) { File.join(test_repo_path, 'templates') }
 
-  let(:encryption_key) { Cfg::Crypto.derive_key(public_key) }
-
-  around do |example|
-    original_sock = ENV['SSH_AUTH_SOCK']
-    ENV['SSH_AUTH_SOCK'] = agent_env['SSH_AUTH_SOCK']
-    example.run
-  ensure
-    ENV['SSH_AUTH_SOCK'] = original_sock
+  before do
+    stub_const('Cfg::Storage::REPO_PATH', test_repo_path)
+    stub_const('Cfg::Storage::PROFILES_DIR', profiles_dir)
+    stub_const('Cfg::Storage::TEMPLATES_DIR', templates_dir)
   end
 
-  describe '.cfg_dir' do
-    it 'returns temp directory in test context' do
-      expect(described_class.cfg_dir).to eq(temp_cfg_dir)
-    end
+  after do
+    FileUtils.rm_rf(test_repo_path)
   end
 
-  describe '.config_dir' do
-    it 'returns path under cfg_dir/configs/<suffix>' do
-      expect(described_class.config_dir('Az61gz')).to eq(File.join(temp_cfg_dir, 'configs', 'Az61gz'))
-    end
-  end
-
-  describe 'index file operations' do
-    it 'returns default index when file does not exist' do
-      index = described_class.load_index
-      expect(index[:encryption][:namespace]).to eq(Cfg::Crypto::NAMESPACE)
-      expect(index[:index]).to eq({})
+  describe '.list_profile_names' do
+    it 'returns empty array when profiles dir does not exist' do
+      expect(described_class.list_profile_names).to eq([])
     end
 
-    it 'saves and loads index correctly' do
-      index = {
-        encryption: { namespace: 'cfg-secrets-v1' },
-        index: {
-          'Az61gz' => {
-            ssh_public_key: 'ssh-ed25519 AAAA...Az61gz',
-            profiles_file: 'profiles-Az61gz.enc'
-          }
-        }
-      }
+    it 'returns profile names without .yaml extension' do
+      FileUtils.mkdir_p(profiles_dir)
+      File.write(File.join(profiles_dir, 'test1.yaml'), '')
+      File.write(File.join(profiles_dir, 'test2.yaml'), '')
 
-      described_class.save_index(index)
-      loaded = described_class.load_index
-
-      expect(loaded[:encryption][:namespace]).to eq('cfg-secrets-v1')
-      expect(loaded[:index][:'Az61gz'][:ssh_public_key]).to eq('ssh-ed25519 AAAA...Az61gz')
-    end
-
-    it 'creates cfg_dir if it does not exist' do
-      FileUtils.rm_rf(temp_cfg_dir)
-      described_class.save_index(described_class.default_index)
-      expect(Dir.exist?(temp_cfg_dir)).to be true
+      names = described_class.list_profile_names
+      expect(names).to contain_exactly('test1', 'test2')
     end
   end
 
-  describe 'profiles file operations' do
-    let(:profiles_data) do
+  describe '.load_profile and .save_profile' do
+    let(:profile_data) do
       {
-        'codex.work' => {
-          description: 'Work Codex',
-          op_account: 'work',
-          outputs: [
-            { template: 'b4c6d2e.enc', type: 'file', target: '~/.codex/config.toml' }
-          ]
-        }
+        description: 'Test Profile',
+        op_account: 'work',
+        outputs: [
+          { template: 'abc123.json', type: 'file', target: '~/.config/test.json' }
+        ]
       }
     end
 
-    it 'returns empty hash when profiles file does not exist' do
-      profiles = described_class.load_profiles(key_suffix, encryption_key)
-      expect(profiles).to eq({})
+    it 'saves and loads profile correctly' do
+      described_class.save_profile('test', profile_data)
+      loaded = described_class.load_profile('test')
+
+      expect(loaded[:description]).to eq('Test Profile')
+      expect(loaded[:op_account]).to eq('work')
+      expect(loaded[:outputs].first[:template]).to eq('abc123.json')
     end
 
-    it 'saves and loads profiles correctly' do
-      described_class.save_profiles(key_suffix, profiles_data, encryption_key)
-      loaded = described_class.load_profiles(key_suffix, encryption_key)
-
-      expect(loaded[:'codex.work'][:description]).to eq('Work Codex')
-      expect(loaded[:'codex.work'][:outputs].first[:template]).to eq('b4c6d2e.enc')
+    it 'creates profiles directory if needed' do
+      described_class.save_profile('test', profile_data)
+      expect(Dir.exist?(profiles_dir)).to be true
     end
 
-    it 'creates encrypted file' do
-      described_class.save_profiles(key_suffix, profiles_data, encryption_key)
-      path = described_class.profiles_path(key_suffix)
+    it 'raises ProfileNotFoundError for missing profile' do
+      expect do
+        described_class.load_profile('nonexistent')
+      end.to raise_error(Cfg::ProfileNotFoundError)
+    end
 
-      expect(File.exist?(path)).to be true
+    it 'stores data as plaintext YAML' do
+      described_class.save_profile('test', profile_data)
+      path = File.join(profiles_dir, 'test.yaml')
       content = File.read(path)
-      expect(content).not_to include('codex.work')
+
+      expect(content).to include('Test Profile')
+      expect(content).to include('work')
     end
   end
 
-  describe 'template file operations' do
+  describe '.delete_profile' do
+    it 'deletes profile file' do
+      described_class.save_profile('test', { description: 'test' })
+      expect(File.exist?(File.join(profiles_dir, 'test.yaml'))).to be true
+
+      described_class.delete_profile('test')
+      expect(File.exist?(File.join(profiles_dir, 'test.yaml'))).to be false
+    end
+
+    it 'does not error if profile does not exist' do
+      expect { described_class.delete_profile('nonexistent') }.not_to raise_error
+    end
+  end
+
+  describe '.load_template and .save_template' do
     let(:template_content) { "ANTHROPIC_API_KEY=op://work/claude-api/credential\n" }
-    let(:template_name) { 'test123.enc' }
 
     it 'saves and loads template correctly' do
-      described_class.save_template(key_suffix, template_name, template_content, encryption_key)
-      loaded = described_class.load_template(key_suffix, template_name, encryption_key)
+      described_class.save_template('abc123.env', template_content)
+      loaded = described_class.load_template('abc123.env')
 
       expect(loaded).to eq(template_content)
     end
 
-    it 'creates config directory' do
-      described_class.save_template(key_suffix, template_name, template_content, encryption_key)
-      expect(Dir.exist?(described_class.config_dir(key_suffix))).to be true
+    it 'creates templates directory if needed' do
+      described_class.save_template('abc123.env', template_content)
+      expect(Dir.exist?(templates_dir)).to be true
     end
 
     it 'raises TemplateNotFoundError for missing template' do
       expect do
-        described_class.load_template(key_suffix, 'nonexistent.enc', encryption_key)
+        described_class.load_template('nonexistent.env')
       end.to raise_error(Cfg::TemplateNotFoundError)
     end
 
-    it 'deletes template file' do
-      described_class.save_template(key_suffix, template_name, template_content, encryption_key)
-      described_class.delete_template(key_suffix, template_name)
+    it 'stores content as plaintext' do
+      described_class.save_template('abc123.env', template_content)
+      path = File.join(templates_dir, 'abc123.env')
+      content = File.read(path)
 
-      expect do
-        described_class.load_template(key_suffix, template_name, encryption_key)
-      end.to raise_error(Cfg::TemplateNotFoundError)
+      expect(content).to eq(template_content)
+    end
+  end
+
+  describe '.delete_template' do
+    it 'deletes template file' do
+      described_class.save_template('test.env', 'content')
+      expect(File.exist?(File.join(templates_dir, 'test.env'))).to be true
+
+      described_class.delete_template('test.env')
+      expect(File.exist?(File.join(templates_dir, 'test.env'))).to be false
+    end
+
+    it 'does not error if template does not exist' do
+      expect { described_class.delete_template('nonexistent.env') }.not_to raise_error
     end
   end
 
   describe '.generate_template_name' do
-    it 'returns 7-char hex hash + .enc' do
-      name = described_class.generate_template_name('some content')
-      expect(name).to match(/\A[a-f0-9]{7}\.enc\z/)
+    it 'returns 7-char hex hash + extension' do
+      name = described_class.generate_template_name('some content', 'json')
+      expect(name).to match(/\A[a-f0-9]{7}\.json\z/)
+    end
+
+    it 'supports different extensions' do
+      name_json = described_class.generate_template_name('content', 'json')
+      name_env = described_class.generate_template_name('content', 'env')
+
+      expect(name_json).to end_with('.json')
+      expect(name_env).to end_with('.env')
     end
 
     it 'generates different names for different content' do
-      name1 = described_class.generate_template_name('content 1')
-      name2 = described_class.generate_template_name('content 2')
+      name1 = described_class.generate_template_name('content 1', 'json')
+      name2 = described_class.generate_template_name('content 2', 'json')
       expect(name1).not_to eq(name2)
     end
 
-    it 'generates same name for same content' do
-      name1 = described_class.generate_template_name('same content')
-      name2 = described_class.generate_template_name('same content')
+    it 'generates same name for same content and extension' do
+      name1 = described_class.generate_template_name('same content', 'json')
+      name2 = described_class.generate_template_name('same content', 'json')
       expect(name1).to eq(name2)
-    end
-  end
-
-  describe '.delete_suffix_data' do
-    it 'removes profiles file and config directory' do
-      described_class.save_profiles(key_suffix, { test: 'data' }, encryption_key)
-      described_class.save_template(key_suffix, 'test.enc', 'content', encryption_key)
-
-      expect(File.exist?(described_class.profiles_path(key_suffix))).to be true
-      expect(Dir.exist?(described_class.config_dir(key_suffix))).to be true
-
-      described_class.delete_suffix_data(key_suffix)
-
-      expect(File.exist?(described_class.profiles_path(key_suffix))).to be false
-      expect(Dir.exist?(described_class.config_dir(key_suffix))).to be false
     end
   end
 end
