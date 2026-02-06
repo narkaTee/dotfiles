@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+require 'open3'
+
+# Parse arguments
+DEBUG = ARGV.include?('--debug')
+
+# Detect container engine
+CONTAINER_ENGINE = if system('which podman > /dev/null 2>&1')
+  'podman'
+elsif system('which docker > /dev/null 2>&1')
+  'docker'
+else
+  STDERR.puts "Error: Neither podman nor docker found"
+  exit 1
+end
+
+image = 'debian:13'
+container_name = "dotfiles-smoketest-#{$$}"
+
+# Cleanup on exit
+at_exit do
+  system("#{CONTAINER_ENGINE} stop -t0 #{container_name} > /dev/null 2>&1")
+end
+
+def run(cmd)
+  stdout, stderr, status = Open3.capture3(cmd)
+
+  if DEBUG
+    puts "$ #{cmd}"
+    puts stdout unless stdout.empty?
+    STDERR.puts stderr unless stderr.empty?
+  end
+
+  unless status.success?
+    unless DEBUG
+      STDERR.puts "$ #{cmd}"
+      STDERR.puts stdout unless stdout.empty?
+      STDERR.puts stderr unless stderr.empty?
+    end
+    exit status.exitstatus
+  end
+end
+
+# Start container
+run("#{CONTAINER_ENGINE} run -d --name #{container_name} --rm #{image} sleep infinity")
+
+# Install dependencies
+run("#{CONTAINER_ENGINE} exec #{container_name} bash -c 'export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y zsh ruby rake git ruby-rspec'")
+
+# Copy dotfiles
+run("#{CONTAINER_ENGINE} exec #{container_name} bash -c 'mkdir /dotfiles'")
+run("#{CONTAINER_ENGINE} cp #{Dir.pwd}/ #{container_name}:/")
+
+# Run installation
+run("#{CONTAINER_ENGINE} exec #{container_name} bash -c 'cd /dotfiles && rake shell'")
+
+# Verify installation very briefly
+run("#{CONTAINER_ENGINE} exec #{container_name} test -f /root/.bashrc")
+run("#{CONTAINER_ENGINE} exec #{container_name} test -d /root/.config/bashrc.d")
+run("#{CONTAINER_ENGINE} exec #{container_name} bash -c 'source /root/.bashrc'")
+
+puts "✓"

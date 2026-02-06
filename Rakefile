@@ -22,7 +22,8 @@ task :install => [
   :k9s,
   :fonts,
   :macos,
-  :vscode
+  :vscode,
+  :cfg,
 ]
 task :shell => [
   :sh,
@@ -109,7 +110,7 @@ task :test_sh do
   end
 end
 
-task :bash => [:test_bash, :sh, :cfg] do
+task :bash => [:test_bash, :sh] do
   ## remove legacy directory
   sh 'rm -rf "$HOME/.bashrc.d"'
   Cfg.directory "#{HOME}/.config/bashrc.d/" do
@@ -299,7 +300,7 @@ task :vscode => :nvim do
   end
 end
 
-task :cfg do
+task :cfg => :bash do
   Cfg.directory "#{HOME}/.local/lib/dotfiles/" do
     purge
     source "ruby/lib/"
