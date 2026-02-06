@@ -127,4 +127,39 @@ RSpec.describe Cfg::UI do
       end
     end
   end
+
+  describe '.with_spinner' do
+    it 'returns block result' do
+      result = described_class.with_spinner('Testing...') { 42 }
+      expect(result).to eq(42)
+    end
+
+    it 'does not show spinner when stderr is not a tty' do
+      original_stderr = $stderr
+      begin
+        $stderr = StringIO.new
+        allow($stderr).to receive(:tty?).and_return(false)
+
+        described_class.with_spinner('Testing...') { sleep 0.05 }
+
+        expect($stderr.string).to be_empty
+      ensure
+        $stderr = original_stderr
+      end
+    end
+
+    it 'cleans up on error' do
+      original_stderr = $stderr
+      begin
+        $stderr = StringIO.new
+        allow($stderr).to receive(:tty?).and_return(false)
+
+        expect do
+          described_class.with_spinner('Testing...') { raise 'error' }
+        end.to raise_error('error')
+      ensure
+        $stderr = original_stderr
+      end
+    end
+  end
 end

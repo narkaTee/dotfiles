@@ -55,25 +55,6 @@ module Cfg
       selected.sub(/ -.*\z/, '')
     end
 
-    # Select an SSH key
-    # keys: array of [pubkey_line, suffix] pairs
-    # Returns selected suffix or nil
-    def select_ssh_key(keys)
-      return nil if keys.empty?
-      return keys.first[1] if keys.length == 1
-
-      items = keys.map do |pubkey_line, suffix|
-        parts = pubkey_line.split
-        comment = parts.length > 2 ? parts[2..].join(' ') : 'no comment'
-        "#{suffix} - #{comment}"
-      end
-
-      selected = pick(items, 'Select SSH key:')
-      return nil unless selected
-
-      selected.sub(/ -.*\z/, '')
-    end
-
     # Select a file target from a profile
     # targets: array of target paths
     # Returns selected target or nil

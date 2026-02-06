@@ -15,14 +15,16 @@ module Cfg
     def ensure_repo!
       return if Dir.exist?(File.join(REPO_PATH, '.git'))
 
-      FileUtils.mkdir_p(File.dirname(REPO_PATH))
-      stdout, stderr, status = Open3.capture3('git', 'clone', REPO_URL, REPO_PATH)
-      raise Error, "Failed to clone repo: #{stderr}" unless status.success?
+      UI.with_spinner('Cloning configuration repository...') do
+        FileUtils.mkdir_p(File.dirname(REPO_PATH))
+        stdout, stderr, status = Open3.capture3('git', 'clone', REPO_URL, REPO_PATH)
+        raise Error, "Failed to clone repo: #{stderr}" unless status.success?
 
-      _, stderr_config, status_config = Open3.capture3('git', '-C', REPO_PATH, 'github')
-      warn "Warning: Failed to configure git author: #{stderr_config}" unless status_config.success?
+        _, stderr_config, status_config = Open3.capture3('git', '-C', REPO_PATH, 'github')
+        warn "Warning: Failed to configure git author: #{stderr_config}" unless status_config.success?
 
-      stdout
+        stdout
+      end
     end
 
     def needs_pull?
@@ -34,13 +36,15 @@ module Cfg
 
     def pull!
       ensure_repo!
-      stdout, stderr, status = Open3.capture3('git', '-C', REPO_PATH, 'pull', '--rebase')
-      unless status.success?
-        raise Error, "Failed to pull: #{stderr}"
-      end
+      UI.with_spinner('Syncing with remote...') do
+        stdout, stderr, status = Open3.capture3('git', '-C', REPO_PATH, 'pull', '--rebase')
+        unless status.success?
+          raise Error, "Failed to pull: #{stderr}"
+        end
 
-      FileUtils.touch(LAST_PULL_FILE)
-      stdout
+        FileUtils.touch(LAST_PULL_FILE)
+        stdout
+      end
     end
 
     def commit!(message)
@@ -56,9 +60,11 @@ module Cfg
 
     def push!
       ensure_repo!
-      stdout, stderr, status = Open3.capture3('git', '-C', REPO_PATH, 'push', 'origin', 'main')
-      warn "Warning: Failed to push: #{stderr}" unless status.success?
-      stdout
+      UI.with_spinner('Pushing to remote...') do
+        stdout, stderr, status = Open3.capture3('git', '-C', REPO_PATH, 'push', 'origin', 'main')
+        warn "Warning: Failed to push: #{stderr}" unless status.success?
+        stdout
+      end
     end
 
     def auto_sync!

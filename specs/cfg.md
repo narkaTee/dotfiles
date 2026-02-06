@@ -71,6 +71,11 @@ cfg sync
 - No spaces or special characters
 - Examples: `claude.work`, `codex-v2`, `api_test`
 
+**Loading indicators:**
+- Git operations (clone, pull, push) show animated spinner in interactive terminals
+- Spinner automatically hidden in pipes/scripts (non-TTY)
+- Animation: bouncing dots (⣾⣽⣻⢿⡿⣟⣯⣷) at 10 FPS
+
 ### Management commands
 
 ```bash

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'tempfile'
+require 'io/console'
 
 module Cfg
   module UI
@@ -54,6 +55,36 @@ module Cfg
       end
 
       rows.each { |row| puts format_row.call(row) }
+    end
+
+    # Show a spinner while executing a block
+    # Returns the block's return value
+    def with_spinner(message)
+      return yield unless $stderr.tty?
+
+      spinner_chars = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷']
+      spinner_thread = Thread.new do
+        idx = 0
+        loop do
+          $stderr.print "\r#{spinner_chars[idx]} #{message}"
+          $stderr.flush
+          idx = (idx + 1) % spinner_chars.length
+          sleep 0.1
+        end
+      end
+
+      begin
+        result = yield
+        spinner_thread.kill
+        $stderr.print "\r#{' ' * (message.length + 2)}\r"
+        $stderr.flush
+        result
+      rescue StandardError => e
+        spinner_thread.kill
+        $stderr.print "\r#{' ' * (message.length + 2)}\r"
+        $stderr.flush
+        raise e
+      end
     end
   end
 end
