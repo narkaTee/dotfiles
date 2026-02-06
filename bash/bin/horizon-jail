@@ -19,12 +19,14 @@ cmd_import() {
     echo "Extracting $deb..."
     local tmp
     tmp=$(mktemp -d)
+    # Intentionally expand $tmp now since it won't change after this point
+    # shellcheck disable=SC2064
     trap "rm -rf '$tmp'" EXIT
 
     ar x --output="$tmp" "$deb"
 
     local data_tar
-    data_tar=$(ls "$tmp"/data.tar.* 2>/dev/null | head -1)
+    data_tar=$(find "$tmp" -maxdepth 1 -name 'data.tar.*' -print -quit)
     [[ -n "$data_tar" ]] || die "no data.tar.* in deb"
 
     rm -rf "$ROOT_DIR"
@@ -90,6 +92,9 @@ cmd_run() {
         --ro-bind /etc/ca-certificates /etc/ca-certificates
         --ro-bind /etc/fonts /etc/fonts
         --ro-bind /etc/machine-id /etc/machine-id
+        --ro-bind /usr/share/zoneinfo /usr/share/zoneinfo
+        --ro-bind /etc/localtime /etc/localtime
+        --ro-bind /usr/lib/os-release /usr/lib/os-release
         --ro-bind /etc/os-release /etc/os-release
 
         # Tmpfs for runtime (bind STATE_DIR_TMP to /tmp so logs are accessible)
@@ -249,7 +254,7 @@ WRAPPER
 }
 
 cmd_shell() {
-    HORIZON_SHELL_MODE=1 cmd_run "$@"
+    HORIZON_SHELL_MODE=1 cmd_run
 }
 
 case "${1:-}" in
