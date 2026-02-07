@@ -56,6 +56,9 @@
 ^.*\.gvt1\.com$
 # copilot
 ^api\.individual\.githubcopilot\.com$
+# codex openai
+^auth\.openai\.com$
+^chatgpt\.com$
 
 # minikube & k8s
 ^registry\.k8s\.io$
