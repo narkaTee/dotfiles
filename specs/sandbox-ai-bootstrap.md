@@ -14,7 +14,7 @@ The AI bootstrap library configures AI agent environments inside sandboxes by co
 - **SSH-based upload**: Uses either SSH alias or port-based connection (same logic as `sandbox` command)
 - **Automatic installation**: Installs/updates agent CLI tools after config upload (see [agents.md](agents.md) for install commands)
 - **Minimal onboarding**: Claude bootstrap ensures `~/.claude.json` has required fields to skip initial setup dialogs (see [agents.md](agents.md) for special handling requirements)
-- **Security considerations**: Gemini OAuth credentials intentionally not copied (commented out) due to revocation concerns
+- **Security considerations**: Credentials with short-lived/session auth are not uploaded (Gemini `oauth_creds.json`, Codex `auth.json`)
 - **Time-boxed retry mechanism**: Agent installation may fail if VM setup incomplete. Retries every 5 seconds for up to 30 seconds until successful.
 
 ## Usage

@@ -116,7 +116,9 @@ if [ -n "$tool_config_dir" ]; then
         "codex")
             mkdir -p "$cred_tmpdir/.codex"
             touch "$cred_tmpdir/.codex/config.toml"
+            touch "$cred_tmpdir/.codex/auth.json"
             args+=(--bind "$cred_tmpdir/.codex/config.toml" "$HOME/.codex/config.toml")
+            args+=(--bind "$cred_tmpdir/.codex/auth.json" "$HOME/.codex/auth.json")
             ;;
         "pi")
             ;;

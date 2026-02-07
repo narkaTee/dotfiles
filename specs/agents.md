@@ -62,7 +62,8 @@ The files might be created by [cfg](cfg.md) when Credentials Injection is used.
 - `~/.config/opencode/opencode.jsonc` - API key and config (exported by cfg)
 
 **Codex**
-- `~/.codex/config.toml`
+- `~/.codex/config.toml` - config exported by cfg
+- `~/.codex/auth.json` - config file to store credentials when logging in via cli (not uploaded by ai-bootstrap, isolated in ai-jail)
 
 **Pi**
 - none known for now (only env vars)
