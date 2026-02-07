@@ -9,6 +9,8 @@ AI_BOOTSTRAP=""
 PROXY=false
 # shellcheck disable=SC2034
 SYNC=false
+# shellcheck disable=SC2034
+HCLOUD_SELECT=false
 
 validate_and_init_backend() {
     case "$BACKEND" in
@@ -465,6 +467,7 @@ Global Flags:
                     Requires hcloud CLI and authentication
     --sync          Sync workspace to VM (hcloud backend only)
                     Runs rsync from current directory to /home/dev/workspace
+    --select        Select Hetzner Cloud server type via fzf (hcloud backend only)
     --proxy          Force all communication to go throug a restrictive proxy
     --agents <list>  Bootstrap AI agents in the sandbox with credentials from the host
                      Accepts comma-separated list (e.g., claude,gemini)
@@ -493,6 +496,7 @@ Examples:
     sandbox                   Start/enter (auto-detects backend)
     sandbox --kvm             Start KVM sandbox
     sandbox --hcloud          Start Hetzner Cloud sandbox
+    sandbox --hcloud --select Start Hetzner Cloud sandbox with interactive server type selection
     sandbox --hcloud --sync   Start Hetzner Cloud sandbox with workspace sync
     sandbox code              Open VS Code (auto-detects backend)
     sandbox info              Show info (auto-detects backend)
@@ -533,6 +537,11 @@ main() {
                 SYNC=true
                 shift
                 ;;
+            --select)
+                # shellcheck disable=SC2034
+                HCLOUD_SELECT=true
+                shift
+                ;;
             --agents)
                 local agents="${2:-}"
                 if [[ -z "$agents" ]]; then
@@ -563,6 +572,11 @@ main() {
             BACKEND="$detected"
             validate_and_init_backend
         fi
+    fi
+
+    if [[ "${HCLOUD_SELECT:-false}" == "true" ]] && [[ "$BACKEND" != "hcloud" ]]; then
+        echo "Error: --select is only available with --hcloud backend" >&2
+        exit 1
     fi
 
     local cmd="${1:-}"

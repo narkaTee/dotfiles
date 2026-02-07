@@ -4,7 +4,7 @@
 # Hetzner Cloud backend for sandbox
 
 # https://www.hetzner.com/cloud/#pricing
-HCLOUD_SERVER_TYPE="${HCLOUD_SERVER_TYPE:-cx23}"  # 2 vCPU, 4GB RAM (can override via env var)
+HCLOUD_SERVER_TYPE="cx23"  # 2 vCPU, 4GB RAM
 HCLOUD_LOCATION="nbg1"     # Nuremberg datacenter
 HCLOUD_IMAGE="debian-13"
 HCLOUD_BASE_DIR="$SANDBOX_CACHE_BASE/hcloud-vms"
@@ -52,6 +52,98 @@ run_hcloud() {
     else
         hcloud "$@"
     fi
+}
+
+select_hcloud_server_type() {
+    if ! command -v fzf >/dev/null 2>&1; then
+        echo "Error: fzf not installed (required for --select)" >&2
+        exit 1
+    fi
+
+    local server_types_json
+    if ! server_types_json="$(run_hcloud server-type list -o json)"; then
+        echo "Error: Failed to fetch Hetzner Cloud server types" >&2
+        exit 1
+    fi
+
+    local server_types_table
+    server_types_table="$(echo "$server_types_json" | jq -r --arg location "$HCLOUD_LOCATION" '
+        def price_for_location($loc):
+            (
+                .location |
+                if type == "object" then (.name // .id // "")
+                else .
+                end
+            ) as $price_location |
+            select($price_location == $loc) |
+            (
+                .price_monthly.gross //
+                .price_monthly.net //
+                empty
+            );
+
+        (
+            if type == "array" then .
+            elif has("server_types") then .server_types
+            else []
+            end
+        )
+        | map(
+            . as $server_type |
+            (
+                [(.prices // [])[] | price_for_location($location)] | first
+            ) as $monthly_price |
+            select($monthly_price != null and $monthly_price != "") |
+            {
+                name: .name,
+                cores: .cores,
+                memory: .memory,
+                disk: .disk,
+                architecture: (.architecture // ""),
+                category: (.category // ""),
+                monthly_price: ($monthly_price | tonumber)
+            }
+        )
+        | sort_by(.monthly_price)
+        | .[]
+        | [
+            .name,
+            (.cores | tostring),
+            (.memory | tostring),
+            (.disk | tostring),
+            .architecture,
+            .category,
+            (.monthly_price | tostring)
+        ] | @tsv
+    ' 2>/dev/null)"
+
+    if [[ -z "$server_types_table" ]]; then
+        echo "Error: No server types available in location $HCLOUD_LOCATION" >&2
+        exit 1
+    fi
+
+    local formatted_server_types_table=""
+    local name cpu ram_gb disk_gb architecture category monthly_price formatted_monthly_price
+    while IFS=$'\t' read -r name cpu ram_gb disk_gb architecture category monthly_price; do
+        [[ -z "$name" ]] && continue
+        printf -v formatted_monthly_price "%.2f €" "$monthly_price"
+        formatted_server_types_table+="${name}"$'\t'"${cpu}"$'\t'"${ram_gb}"$'\t'"${disk_gb}"$'\t'"${architecture}"$'\t'"${category}"$'\t'"${formatted_monthly_price}"$'\n'
+    done <<< "$server_types_table"
+
+    local selected_line
+    selected_line="$(
+        {
+            printf "NAME\tCPU\tRAM_GB\tDISK_GB\tARCH\tCATEGORY\tPRICE_MONTHLY\n"
+            printf "%s" "$formatted_server_types_table"
+        } | fzf --height=50% --reverse --header-lines=1 --prompt="server type> "
+    )"
+
+    if [[ -z "$selected_line" ]]; then
+        echo "Error: Server type selection cancelled" >&2
+        exit 1
+    fi
+
+    echo "${selected_line%%$'\t'*}"
 }
 
 get_hcloud_vm_name() {
@@ -136,6 +228,11 @@ start_hcloud_sandbox() {
     # Prepare VM name
     local vm_name
     vm_name="$(get_hcloud_vm_name "$name")"
+
+    if [[ "${HCLOUD_SELECT:-false}" == "true" ]]; then
+        echo "Fetching server types..."
+        HCLOUD_SERVER_TYPE="$(select_hcloud_server_type)"
+    fi
 
     # Validate VM name length (DNS limit is 63 chars)
     if [[ ${#vm_name} -gt 63 ]]; then

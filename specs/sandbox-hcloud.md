@@ -16,6 +16,7 @@ The Hetzner Cloud backend provides cloud-based development sandboxes using Hetzn
 - **Dotfiles auto-provisioning**: Automatically clones and configures dotfiles repo during VM initialization
 - **Hostname-prefixed naming**: VMs named `{hostname}-sandbox-{project}` to avoid conflicts
 - **Optional workspace sync**: Rsync only when `--sync` flag specified
+- **Optional server type selection**: Interactive `fzf` selection when `--select` flag is specified, filtered to the default location and sorted by monthly price
 - **State persistence on errors**: Failed stop operations preserve local state for retry
 
 ## Usage
@@ -24,6 +25,9 @@ The Hetzner Cloud backend provides cloud-based development sandboxes using Hetzn
 ```bash
 # From main sandbox command
 sandbox --hcloud
+
+# With interactive server type selection
+sandbox --hcloud --select
 
 # With workspace rsync
 sandbox --hcloud --sync
@@ -67,6 +71,7 @@ stop_all_hcloud_sandboxes
 - hcloud CLI: `hcloud` command for Hetzner Cloud API
 - Authentication: HCLOUD_TOKEN environment variable or hcloud context configured
 - 1Password CLI (optional): `op` command for secure credential injection
+- fzf: Required for `--select` interactive server type selection
 - rsync: For `--sync` flag functionality
 - SSH client: For connecting to VMs
 
@@ -86,9 +91,15 @@ stop_all_hcloud_sandboxes
 - Non-invasive detection: Simple file existence check, no commands executed
 
 **VM resources (hardcoded):**
-- Server type: CX23 (can be overridden via HCLOUD_SERVER_TYPE, to allow larger workloads)
+- Server type: CX23 by default
+- Server type can be selected interactively via `sandbox --hcloud --select`
 - Location: nbg1 (Nuremberg) (hardcoded)
 - Image: debian-13 (hardcoded)
+- `--select` list behavior:
+  - Only server types with pricing available in the configured default location are shown
+  - Entries are sorted by monthly price (lowest first)
+  - Table includes architecture and category columns
+  - Monthly price is displayed as `X.XX €`
 
 **VM naming:**
 - Format: `{hostname}-sandbox-{project}`

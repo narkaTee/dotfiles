@@ -25,6 +25,10 @@ sandbox
 # Explicitly choose backend
 sandbox --kvm
 sandbox --container
+sandbox --hcloud
+
+# Select hcloud server type interactively
+sandbox --hcloud --select
 
 # Add network isolation via proxy
 sandbox --proxy
