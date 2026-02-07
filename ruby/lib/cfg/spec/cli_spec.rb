@@ -157,6 +157,12 @@ RSpec.describe Cfg::CLI do
       stdout, = capture_output { described_class.run(['--select', 'claude']) }
       expect(stdout.strip).to eq('claude.personal')
     end
+
+    it 'returns empty output when <none> is selected' do
+      allow(mock_picker).to receive(:call).and_return('<none> - No credentials')
+      stdout, = capture_output { described_class.run(['--select', 'claude']) }
+      expect(stdout.strip).to eq('')
+    end
   end
 
   describe '--has-profiles' do

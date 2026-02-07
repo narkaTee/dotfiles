@@ -48,9 +48,14 @@ RSpec.describe Cfg::Selector do
       expect(result).to eq('claude.work')
     end
 
-    it 'returns single prefix match without picker' do
+    it 'uses picker for single prefix match to allow <none>' do
+      allow(mock_picker).to receive(:call).and_return('codex.work - Work Codex')
       result = described_class.select_profile('codex')
       expect(result).to eq('codex.work')
+      expect(mock_picker).to have_received(:call).with(
+        array_including('codex.work - Work Codex', '<none> - No credentials'),
+        'Select profile:'
+      )
     end
 
     it 'calls picker for multiple prefix matches' do
@@ -67,6 +72,18 @@ RSpec.describe Cfg::Selector do
       allow(mock_picker).to receive(:call).and_return(nil)
       result = described_class.select_profile('claude')
       expect(result).to be_nil
+    end
+
+    it 'returns empty selection when <none> is picked' do
+      allow(mock_picker).to receive(:call).and_return('<none> - No credentials')
+      result = described_class.select_profile('claude')
+      expect(result).to eq('')
+    end
+
+    it 'returns empty selection when <none> is picked without description' do
+      allow(mock_picker).to receive(:call).and_return('<none>')
+      result = described_class.select_profile('claude')
+      expect(result).to eq('')
     end
 
     it 'returns nil for no matches' do

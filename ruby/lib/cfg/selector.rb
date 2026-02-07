@@ -4,6 +4,8 @@ require 'open3'
 
 module Cfg
   module Selector
+    NONE_PROFILE_SELECTION = '<none>'
+
     class << self
       # Injectable picker function for testing
       attr_writer :picker
@@ -38,18 +40,18 @@ module Cfg
         exact = matching.find { |p| p.name == prefix }
         return exact.name if exact
 
-        # Single match
-        return matching.first.name if matching.length == 1
-
-        # Multiple matches - pick
+        # Prefix matches - pick
         profiles = matching
       end
 
       return nil if profiles.empty?
 
       items = profiles.map { |p| "#{p.name} - #{p.description}" }
+      none_item = "#{NONE_PROFILE_SELECTION} - No credentials"
+      items << none_item
       selected = pick(items, 'Select profile:')
       return nil unless selected
+      return '' if selected == NONE_PROFILE_SELECTION || selected == none_item
 
       # Handle case where description is empty (fzf may trim trailing space)
       selected.sub(/ -.*\z/, '')

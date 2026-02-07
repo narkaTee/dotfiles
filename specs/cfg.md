@@ -61,8 +61,9 @@ cfg sync
 
 **Profile selection:**
 - `cfg claude.work` - direct selection, no prompt
-- `cfg claude` - auto-selects if one `claude.*` exists; otherwise fzf picker
+- `cfg claude` - always opens fzf picker for `claude.*` matches
 - `cfg --select claude` - same as above, outputs profile name to stdout
+- fzf picker includes `<none>` option for no-credentials bootstrap (outputs empty string)
 - `cfg --has-profiles claude` - check if any `claude.*` profiles exist (exits 0 if yes, 1 if none)
 
 **Profile naming rules:**
