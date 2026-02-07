@@ -308,6 +308,10 @@ task :cfg => :bash do
   sh 'install -m 755 ruby/bin/cfg "$HOME/bin/cfg"'
 end
 
+task :sandbox => :cfg do
+  sh 'install -m 755 ruby/bin/sandbox "$HOME/bin/sandbox"'
+end
+
 task :test_cfg do
   begin
     require 'rspec/core/rake_task'
@@ -324,4 +328,22 @@ task :test_cfg do
     t.pattern = test_files
   end
   Rake::Task[:_run_cfg_specs].invoke
+end
+
+task :test_sandbox do
+  begin
+    require 'rspec/core/rake_task'
+  rescue LoadError
+    puts "Warning: rspec not installed, skipping sandbox tests"
+    next
+  end
+  test_files = Dir.glob("ruby/lib/sandbox/spec/*_spec.rb")
+  if test_files.empty?
+    puts "No sandbox spec files found"
+    next
+  end
+  RSpec::Core::RakeTask.new(:_run_sandbox_specs) do |t|
+    t.pattern = test_files
+  end
+  Rake::Task[:_run_sandbox_specs].invoke
 end
