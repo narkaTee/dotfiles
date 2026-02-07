@@ -5,7 +5,7 @@ source "$HOME/.config/lib/bash/prompt-patcher/lib.bash"
 
 ensure_know_agent() {
     case "${1:-}" in
-        claude|gemini|opencode) ;;
+        claude|gemini|opencode|codex|pi) ;;
         *)
             echo "Unknown agent '${1:-}'" >&2
             exit 1
@@ -127,6 +127,50 @@ build_opencode_config() {
     echo "$selected_profile" > "$staging_dir/.config/opencode/.cfg_profile"
 }
 
+build_codex_config() {
+    local staging_dir="$1"
+    local sandbox_name="$2"
+    local source="$HOME/.codex"
+
+    local selected_profile=""
+    if hash cfg 2>/dev/null && cfg --has-profiles codex 2>/dev/null; then
+        selected_profile=$(cfg --select codex 2>/dev/null) || {
+            echo "cfg: Profile selection cancelled, aborting" >&2
+            exit 1
+        }
+    fi
+
+    if [[ -n "$selected_profile" ]]; then
+        cfg "$selected_profile" --export-file --base-dir "$staging_dir" 2>/dev/null || true
+    elif [[ -f "$source/config.toml" ]]; then
+        mkdir -p "$staging_dir/.codex"
+        cp "$source/config.toml" "$staging_dir/.codex/"
+    fi
+
+    mkdir -p "$staging_dir/.codex"
+    patch_prompt_file "$staging_dir/.codex/AGENTS.md" "$sandbox_name"
+
+    echo "$selected_profile" > "$staging_dir/.codex/.cfg_profile"
+}
+
+build_pi_config() {
+    local staging_dir="$1"
+    local sandbox_name="$2"
+
+    local selected_profile=""
+    if hash cfg 2>/dev/null && cfg --has-profiles pi 2>/dev/null; then
+        selected_profile=$(cfg --select pi 2>/dev/null) || {
+            echo "cfg: Profile selection cancelled, aborting" >&2
+            exit 1
+        }
+    fi
+
+    mkdir -p "$staging_dir/.pi/agent"
+    patch_prompt_file "$staging_dir/.pi/agent/AGENTS.md" "$sandbox_name"
+
+    echo "$selected_profile" > "$staging_dir/.pi/agent/.cfg_profile"
+}
+
 bootstrap_ai() {
     local name="$1"
     local agent="$2"
@@ -178,6 +222,14 @@ bootstrap_ai() {
             build_opencode_config "$temp" "$name"
             install_cmd="npm -g install opencode-ai"
             ;;
+        codex)
+            build_codex_config "$temp" "$name"
+            install_cmd="npm -g install @openai/codex"
+            ;;
+        pi)
+            build_pi_config "$temp" "$name"
+            install_cmd="npm install -g @mariozechner/pi-coding-agent"
+            ;;
         *)
             echo "Unknown agent '$agent'" >&2
             exit 1
@@ -187,9 +239,9 @@ bootstrap_ai() {
     echo "Uploading agent config"
     scp "${scp_args[@]}" -r "$temp"/.* "$scp_host:~/"
 
-    if [[ -f "$temp/.claude/.cfg_profile" || -f "$temp/.gemini/.cfg_profile" || -f "$temp/.config/opencode/.cfg_profile" ]]; then
+    if [[ -f "$temp/.claude/.cfg_profile" || -f "$temp/.gemini/.cfg_profile" || -f "$temp/.config/opencode/.cfg_profile" || -f "$temp/.codex/.cfg_profile" || -f "$temp/.pi/agent/.cfg_profile" ]]; then
         local profile_file
-        for profile_file in "$temp"/*/.cfg_profile "$temp"/.config/*/.cfg_profile; do
+        for profile_file in "$temp"/*/.cfg_profile "$temp"/.config/*/.cfg_profile "$temp"/.pi/agent/.cfg_profile "$temp"/.codex/.cfg_profile; do
             if [[ -f "$profile_file" ]]; then
                 local profile
                 profile=$(<"$profile_file")

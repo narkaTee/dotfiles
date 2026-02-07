@@ -12,7 +12,7 @@ This directory contains detailed specifications for each component in the dotfil
 
 | Component | Spec File | Description |
 |-----------|-----------|-------------|
-| Agents | [agents.md](agents.md) | Centralized metadata for AI coding agents (Claude, Gemini, OpenCode) - config paths, credential files, prompt files |
+| Agents | [agents.md](agents.md) | Centralized metadata for AI coding agents - config paths, credential files, prompt files |
 
 ## Development Tools
 

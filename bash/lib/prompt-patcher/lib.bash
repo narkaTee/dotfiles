@@ -11,6 +11,8 @@ get_prompt_filename() {
         claude)   echo "CLAUDE.md" ;;
         gemini)   echo "GEMINI.md" ;;
         opencode) echo "AGENT.md" ;;
+        codex)    echo "AGENTS.md" ;;
+        pi)       echo "AGENTS.md" ;;
         *)
             echo "Unknown tool: $tool_name" >&2
             return 1

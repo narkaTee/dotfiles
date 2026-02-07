@@ -24,6 +24,8 @@ get_tool_config_dir() {
         "claude") echo ".claude" ;;
         "gemini") echo ".gemini" ;;
         "opencode") echo ".config/opencode" ;;
+        "codex") echo ".codex" ;;
+        "pi") echo ".pi/agent" ;;
         *)
             echo "[ai-jail profile] Could not determine tool dir for $1" >&2
             return 1
@@ -61,7 +63,7 @@ elif cfg --has-profiles "$tool_name" 2>/dev/null; then
     }
 
     while IFS= read -r line; do
-        if [[ "$line" =~ ^export\ ([^=]+)=(.*)$ ]]; then
+        if [[ "$line" =~ ^export\ ([^=]+)=\'(.*)\'$ ]]; then
             args+=(--setenv "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")
         fi
     done < <(cfg "$profile" --export-env 2>/dev/null || true)
@@ -110,6 +112,13 @@ if [ -n "$tool_config_dir" ]; then
             mkdir -p "$cred_tmpdir/.config/opencode"
             touch "$cred_tmpdir/.config/opencode/opencode.jsonc"
             args+=(--bind "$cred_tmpdir/.config/opencode/opencode.jsonc" "$HOME/.config/opencode/opencode.jsonc")
+            ;;
+        "codex")
+            mkdir -p "$cred_tmpdir/.codex"
+            touch "$cred_tmpdir/.codex/config.toml"
+            args+=(--bind "$cred_tmpdir/.codex/config.toml" "$HOME/.codex/config.toml")
+            ;;
+        "pi")
             ;;
     esac
 

@@ -2,15 +2,17 @@
 
 ## Overview
 
-Centralized metadata for supported AI coding agents (Claude Code, Gemini CLI, OpenCode). This spec defines configuration paths, credential file locations, and tool-specific details used by [ai-bootstrap](sandbox-ai-bootstrap.md) and [ai-jail](boxed-ai-jail.md).
+Centralized metadata for supported AI coding agents. This spec defines configuration paths, credential file locations, and tool-specific details used by [ai-bootstrap](sandbox-ai-bootstrap.md) and [ai-jail](boxed-ai-jail.md).
 
 ## Supported Agents
 
-| Agent | Config Dir/Files | cfg Name | Prompt File | NPM Package |
-|-------|-----------|----------|-------------|-------------|
-| `claude` | `~/.claude/`, `~/.claude.json` | `claude` | `CLAUDE.md` | `@anthropic-ai/claude-code` |
-| `gemini` | `~/.gemini/` | `gemini` | `GEMINI.md` | `@google/gemini-cli` |
-| `opencode` | `~/.config/opencode/` | `opencode` | `AGENT.md` | `opencode-ai` |
+| Agent | Config Dir/Files | cfg Name | Prompt File |
+|-------|-----------|----------|-------------|
+| `claude` | `~/.claude/`, `~/.claude.json` | `claude` | `CLAUDE.md` |
+| `gemini` | `~/.gemini/` | `gemini` | `GEMINI.md` |
+| `opencode` | `~/.config/opencode/` | `opencode` | `AGENT.md` |
+| `codex` | `~/.config/codex/` | `codex` | `AGENTS.md` |
+| `pi` | `~/.pi/agent/` | `pi` | `AGENTS.md` |
 
 ## Install commands
 
@@ -32,6 +34,18 @@ npm -g install @google/gemini-cli
 npm -g install opencode-ai
 ```
 
+### Codex
+
+```bash
+npm -g install @openai/codex
+```
+
+### Pi
+
+```bash
+npm install -g @mariozechner/pi-coding-agent
+```
+
 ## Credential Files (Require tmpfs Isolation)
 
 Files containing secrets that must not persist to disk after the sandboxed environment exited.
@@ -46,6 +60,12 @@ The files might be created by [cfg](cfg.md) when Credentials Injection is used.
 
 **opencode**
 - `~/.config/opencode/opencode.jsonc` - API key and config (exported by cfg)
+
+**Codex**
+- `~/.codex/config.toml`
+
+**Pi**
+- none known for now (only env vars)
 
 ## Special Handling Requirements
 

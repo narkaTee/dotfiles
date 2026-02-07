@@ -468,7 +468,7 @@ Global Flags:
     --proxy          Force all communication to go throug a restrictive proxy
     --agents <list>  Bootstrap AI agents in the sandbox with credentials from the host
                      Accepts comma-separated list (e.g., claude,gemini)
-                     Supported Agents: claude, gemini, opencode
+                     Supported Agents: claude, gemini, opencode, codex, pi
 
 Backend Selection:
     The backend is automatically detected based on running sandboxes.
