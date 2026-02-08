@@ -5,6 +5,9 @@ This sandbox runs inside a container with these limitations:
 - **Limited capabilities** - System-level operations may be restricted
 - **Resource limits** - RAM, CPU cores, and number of processes are limited
 
+Whenever you encounter command not found or a missing dev dependency in this VM, first attempt to install it using the available tools.
+The user expect you to solve these problems on your own in this evironment.
+
 ## Available Package Managers
 
 Use package managers in this priority order for best results:
