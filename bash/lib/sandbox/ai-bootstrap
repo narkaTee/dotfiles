@@ -3,6 +3,21 @@
 
 source "$HOME/.config/lib/bash/prompt-patcher/lib.bash"
 
+AGENT_MAGIC_SKILLS="$HOME/.config/agent-magic/skills"
+
+get_tool_skill_dir() {
+    case "$1" in
+        "claude") echo ".claude/skills" ;;
+        "gemini") echo ".gemini/skills" ;;
+        "opencode") echo ".agents/skills" ;;
+        "codex") echo ".agents/skills" ;;
+        "pi") return 1 ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 ensure_know_agent() {
     case "${1:-}" in
         claude|gemini|opencode|codex|pi) ;;
@@ -228,7 +243,7 @@ bootstrap_ai() {
             ;;
         pi)
             build_pi_config "$temp" "$name"
-            install_cmd="npm install -g @mariozechner/pi-coding-agent"
+            install_cmd="npm install -g @mariozechner/pi-coding-agent && pi install git:https://github.com/narkaTee/agent-magic"
             ;;
         *)
             echo "Unknown agent '$agent'" >&2
@@ -238,6 +253,13 @@ bootstrap_ai() {
 
     echo "Uploading agent config"
     scp "${scp_args[@]}" -r "$temp"/.* "$scp_host:~/"
+
+    local tool_skill_dir
+    if tool_skill_dir="$(get_tool_skill_dir "$agent")" && [[ -d "$AGENT_MAGIC_SKILLS" ]]; then
+        echo "Uploading agent skills"
+        "${ssh_cmd[@]}" "mkdir -p ~/$tool_skill_dir"
+        scp "${scp_args[@]}" -r "$AGENT_MAGIC_SKILLS"/* "$scp_host:~/$tool_skill_dir/"
+    fi
 
     if [[ -f "$temp/.claude/.cfg_profile" || -f "$temp/.gemini/.cfg_profile" || -f "$temp/.config/opencode/.cfg_profile" || -f "$temp/.codex/.cfg_profile" || -f "$temp/.pi/agent/.cfg_profile" ]]; then
         local profile_file

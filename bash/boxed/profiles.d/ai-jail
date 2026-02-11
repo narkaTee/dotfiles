@@ -19,6 +19,22 @@ feature_bind_vim_cfg
 feature_bind_npm_globals
 feature_bind_all_path_dirs
 
+AGENT_MAGIC_SKILLS="$HOME/.config/agent-magic/skills"
+
+get_tool_skill_dir() {
+    case "$1" in
+        "claude") echo ".claude/skills" ;;
+        "gemini") echo ".gemini/skills" ;;
+        "opencode") echo ".agents/skills" ;;
+        "codex") echo ".agents/skills" ;;
+        "pi") return 1 ;;
+        *)
+            echo "[ai-jail profile] Could not determine skill dir for $1" >&2
+            return 1
+            ;;
+    esac
+}
+
 get_tool_config_dir() {
     case "$1" in
         "claude") echo ".claude" ;;
@@ -134,6 +150,16 @@ if [ -n "$tool_config_dir" ]; then
     fi
 
     replace_all_prompt_blocks "$boxed_prompt_file" "" "sandbox-bwrap" "git-readonly"
+
+    tool_skill_dir=""
+    if tool_skill_dir="$(get_tool_skill_dir "$tool_name")" && [[ -d "$AGENT_MAGIC_SKILLS" ]]; then
+        for skill_dir in "$AGENT_MAGIC_SKILLS"/*/; do
+            [[ -d "$skill_dir" ]] || continue
+            skill_name="$(basename "$skill_dir")"
+            mkdir -p "$HOME/$tool_skill_dir/$skill_name"
+            args+=(--ro-bind "$skill_dir" "$HOME/$tool_skill_dir/$skill_name")
+        done
+    fi
 fi
 
 add_env 'EDITOR'

@@ -12,24 +12,15 @@ The Rakefile DSL is a Ruby-based build system for managing dotfile installations
 - **Platform detection**: Provides helpers (`is_macos`, `is_linux`, `has_command`) to enable cross-platform configurations
 - **Git repository management**: Handles cloning, updating, and pruning git repos declaratively
 
+## API Reference
+
+- `Cfg.file(permissions, src:, dst:)` - Install a single file with permissions
+- `Cfg.directory(path) { purge; source "dir/"; ignore "pattern" }` - Sync a directory, optionally purge unmanaged files
+- `Cfg.git_directory(path, { name: url, ... })` - Manage multiple git repos in a directory (clone/update/prune)
+- `Utils.git(url, path)` - Clone a single git repo or pull if it already exists
+- `is_macos`, `is_linux`, `has_command(name)` - Platform detection helpers
+
 ## Usage
-
-**Running tasks:**
-
-```bash
-# Install all configurations (default task)
-rake
-# or explicitly
-rake install
-
-# Run all checks (shellcheck + syntax validation)
-rake check
-
-# Install specific component
-rake bash
-rake vim
-rake git
-```
 
 **DSL examples:**
 

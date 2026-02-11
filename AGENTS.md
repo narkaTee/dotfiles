@@ -1,5 +1,7 @@
 # AGHENTS.md
 
+- Use ASCII characters only in code and documentation. No unicode dashes, quotes, or other typographic characters.
+
 ## Installing dotfiles for testing
 
 When running test on the system you should install the dotfiles via rake.

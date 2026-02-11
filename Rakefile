@@ -300,6 +300,10 @@ task :vscode => :nvim do
   end
 end
 
+task :agents do
+  Utils.git("git@github.com:narkaTee/agent-magic.git", "#{HOME}/.config/agent-magic/")
+end
+
 task :cfg => :bash do
   Cfg.directory "#{HOME}/.local/lib/dotfiles/" do
     purge

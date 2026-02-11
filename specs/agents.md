@@ -2,17 +2,17 @@
 
 ## Overview
 
-Centralized metadata for supported AI coding agents. This spec defines configuration paths, credential file locations, and tool-specific details used by [ai-bootstrap](sandbox-ai-bootstrap.md) and [ai-jail](boxed-ai-jail.md).
+Centralized metadata for supported AI coding agents. This spec defines configuration paths, credential file locations, skill directories, and tool-specific details used by [ai-bootstrap](sandbox-ai-bootstrap.md) and [ai-jail](boxed-ai-jail.md).
 
 ## Supported Agents
 
-| Agent | Config Dir/Files | cfg Name | Prompt File |
-|-------|-----------|----------|-------------|
-| `claude` | `~/.claude/`, `~/.claude.json` | `claude` | `CLAUDE.md` |
-| `gemini` | `~/.gemini/` | `gemini` | `GEMINI.md` |
-| `opencode` | `~/.config/opencode/` | `opencode` | `AGENT.md` |
-| `codex` | `~/.config/codex/` | `codex` | `AGENTS.md` |
-| `pi` | `~/.pi/agent/` | `pi` | `AGENTS.md` |
+| Agent | Config Dir/Files | cfg Name | Prompt File | Skill Directory |
+|-------|-----------|----------|-------------|-----------------|
+| `claude` | `~/.claude/`, `~/.claude.json` | `claude` | `CLAUDE.md` | `~/.claude/skills/` |
+| `gemini` | `~/.gemini/` | `gemini` | `GEMINI.md` | `~/.gemini/skills/` |
+| `opencode` | `~/.config/opencode/` | `opencode` | `AGENT.md` | `~/.agents/skills` |
+| `codex` | `~/.config/codex/` | `codex` | `AGENTS.md` | `~/.agents/skills/` |
+| `pi` | `~/.pi/agent/` | `pi` | `AGENTS.md` | managed via pi-package |
 
 ## Install commands
 
@@ -44,6 +44,7 @@ npm -g install @openai/codex
 
 ```bash
 npm install -g @mariozechner/pi-coding-agent
+pi install git:https://github.com/narkaTee/agent-magic
 ```
 
 ## Credential Files (Require tmpfs Isolation)
@@ -99,6 +100,24 @@ EOF
     fi
 fi
 ```
+
+## Shared Skills
+
+### Overview
+
+Reusable agent skills are maintained in the [agent-magic](https://github.com/narkaTee/agent-magic) repository.
+
+### Host Installation
+
+The agent-magic repository is cloned to `~/.config/agent-magic/`.
+
+### Sandbox Skill Installation
+
+Skills must be installed into each agent's native skill directory inside sandboxes. The skill format (`<name>/SKILL.md`) is the same across agents - only the target directory differs. See the Skill Directory column in the Supported Agents table for agent-specific paths.
+
+If `~/.config/agent-magic/` does not exist on the host, skill installation is silently skipped.
+
+See [ai-jail](boxed-ai-jail.md) and [ai-bootstrap](sandbox-ai-bootstrap.md) for implementation details.
 
 ## Key Constraints
 

@@ -84,6 +84,16 @@ Uses [cfg](cfg.md) for secure credential injection when profiles exist.
 - Credential files writable (agents can update tokens, settings) but ephemeral (cleanup on exit)
 - No credential leakage to persistent storage
 
+### Skill Installation
+
+Installs shared skills from [agent-magic](agents.md#shared-skills) into the agent's native skill directory inside the sandbox.
+
+- **Source:** `~/.config/agent-magic/skills/<name>/` on the host
+- **Target:** Agent's skill directory (see [agents.md](agents.md) Skill Directory column)
+- **Method:** Bind-mount each skill subdirectory read-only into the agent's skill directory
+- **Skip condition:** If `~/.config/agent-magic/` does not exist, skill installation is silently skipped
+- **Pi:** Skipped, handled via pi-package
+
 ### Prompt Injection
 
 Automatically patches agent prompt files with sandbox environment notices:

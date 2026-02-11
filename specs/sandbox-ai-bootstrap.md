@@ -61,6 +61,16 @@ For each supported agent, the bootstrap:
 
 See [agents.md](agents.md) for agent-specific paths, credential files, and install commands.
 
+## Skill Installation
+
+Installs shared skills from [agent-magic](agents.md#shared-skills) into the agent's native skill directory inside the remote sandbox.
+
+- **Source:** `~/.config/agent-magic/skills/` on the host
+- **Target:** Agent's skill directory on the sandbox (see [agents.md](agents.md) Skill Directory column)
+- **Method:** SCP skill subdirectories into the agent's skill directory on the remote sandbox
+- **Skip condition:** If `~/.config/agent-magic/` does not exist on the host, skill installation is silently skipped
+- **Pi:** Skipped, handled via pi-package
+
 ## Prompt Patching Logic
 
 The `patch_prompt_file` function dynamically selects blocks based on sandbox configuration. Default blocks (`communication`, `conventions`) are automatically injected by the prompt-patcher library.
