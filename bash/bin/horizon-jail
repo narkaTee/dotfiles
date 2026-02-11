@@ -232,9 +232,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM HUP
 
-# Start USB arbitrator in foreground mode, backgrounded
+# Clean up stale socket
+rm -f /var/run/omnissa/eucusbarbitrator-socket
+
+# Start USB arbitrator in foreground mode with verbose logging
 if [ -x "$ARB" ]; then
-    "$ARB" --foreground &
+    "$ARB" --foreground --verbose &
     ARB_PID=$!
     sleep 0.5
 fi
