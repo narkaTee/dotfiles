@@ -1,0 +1,17 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2154
+
+BREW_PREFIX="/home/linuxbrew/.linuxbrew"
+BREW_BIN="$BREW_PREFIX/bin"
+BREW_SBIN="$BREW_PREFIX/sbin"
+
+bind_rw_if_exists "$BREW_PREFIX"
+
+bind_ro_if_exists /etc/os-release
+bind_ro_if_exists /etc/lsb-release
+
+feature_track_commands brew "$BREW_BIN" "$BREW_SBIN"
+
+add_env 'HOMEBREW_*'
+
+feature_network

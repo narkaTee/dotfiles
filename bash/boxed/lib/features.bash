@@ -222,3 +222,86 @@ overlay_mount() {
         args+=(--overlay "$upper_dir" "$work_dir" "$mount_point")
     fi
 }
+
+_generate_tracking_wrapper() {
+    local wrapper_path="$1"
+    local before_file="$2"
+    local after_file="$3"
+    shift 3
+    local dirs=("$@")
+
+    local new_commands_file
+    new_commands_file="$(dirname "$after_file")/commands.new"
+
+    {
+        cat <<'EOF_WRAPPER_START'
+#!/usr/bin/env bash
+set -euo pipefail
+
+EOF_WRAPPER_START
+
+        echo "BEFORE_FILE=\"$before_file\""
+        echo "AFTER_FILE=\"$after_file\""
+        echo "NEW_COMMANDS_FILE=\"$new_commands_file\""
+        echo ""
+
+        echo "TRACKED_DIRS=("
+        for dir in "${dirs[@]}"; do
+            echo "    \"$dir\""
+        done
+        echo ")"
+        echo ""
+
+        cat <<'EOF_WRAPPER_END'
+"$@"
+exit_code=$?
+
+{
+    for dir in "${TRACKED_DIRS[@]}"; do
+        if [ -d "$dir" ]; then
+            find "$dir" -maxdepth 1 \( -type f -o -type l \) 2>/dev/null || true
+        fi
+    done
+} | sort > "$AFTER_FILE"
+
+comm -13 "$BEFORE_FILE" "$AFTER_FILE" > "$NEW_COMMANDS_FILE" || true
+
+if [ -s "$NEW_COMMANDS_FILE" ]; then
+    echo ""
+    echo "📦 New commands installed:"
+    while IFS= read -r cmd; do
+        basename "$cmd" | sed 's/^/  - /'
+    done < "$NEW_COMMANDS_FILE"
+fi
+
+exit $exit_code
+EOF_WRAPPER_END
+    } > "$wrapper_path"
+
+    chmod +x "$wrapper_path"
+}
+
+feature_track_commands() {
+    local profile_name="$1"
+    shift
+    local dirs=("$@")
+
+    local state_dir="$HOME/.cache/boxed/$profile_name"
+    mkdir -p "$state_dir"
+
+    local before="$state_dir/commands.before"
+    local after="$state_dir/commands.after"
+
+    {
+        for dir in "${dirs[@]}"; do
+            if [ -d "$dir" ]; then
+                find "$dir" -maxdepth 1 \( -type f -o -type l \) 2>/dev/null || true
+            fi
+        done
+    } | sort > "$before"
+
+    local wrapper="$state_dir/wrapper.sh"
+    _generate_tracking_wrapper "$wrapper" "$before" "$after" "${dirs[@]}"
+
+    prepend_cmd+=("$wrapper")
+}

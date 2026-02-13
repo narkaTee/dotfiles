@@ -94,12 +94,37 @@ In [features.bash](../bash/boxed/lib/features.bash).
 - `add_env <pattern>`: Pass environment variables matching glob pattern
 - `overlay_mount <lower> <upper> <work> <mount>`: Create overlay filesystem (for copy-on-write configs)
 - `feature_run_optpl_with_template <template>`: Prepend optpl command for credential injection
+- `feature_track_commands <profile_name> <dir1> [dir2...]`: Track new commands added to directories during sandbox execution (state stored in `~/.cache/boxed/<profile_name>`)
 
 ## Integration Points
 
 ### optpl Integration
 
 Profiles can use `feature_run_optpl_with_template` to inject credentials from 1Password before entering the sandbox. See [boxed-ai-jail.md](boxed-ai-jail.md) for an example.
+
+### Command Tracking
+
+Profiles can use `feature_track_commands` to automatically track new commands added during sandbox execution:
+
+```bash
+feature_track_commands myprofile "/path/to/bin" "/path/to/sbin"
+```
+
+This feature:
+- Automatically creates state directory at `~/.cache/boxed/<profile_name>`
+- Captures list of commands in specified directories before sandbox runs
+- Generates a wrapper script that runs outside the sandbox (security: sandboxed code cannot manipulate tracking)
+- After sandbox exits, compares command lists and displays new commands
+- State directory is NOT bound into sandbox, preventing tampering
+
+**Output format** (when new commands are found):
+```
+📦 New commands installed:
+  - command1
+  - command2
+```
+
+See [boxed-brew.md](boxed-brew.md) for an example implementation.
 
 ## Configuration
 
