@@ -20,6 +20,7 @@
     ls = "log --oneline"
     new = !git log $1@{1}..$1@{0} "$@"
     github = "!f(){ git config user.name narkaTee; git config user.email narkaTee@users.noreply.github.com; };f"
+    githubcc = "!f(){ git config user.name 'Jan Ullrich'; git config user.email 104379365+cc-ju@users.noreply.github.com; };f"
     gitlab = "!f(){ git config user.name narkaTee; git config user.email 2197369-narkaTee@users.noreply.gitlab.com; };f"
     desc = "describe --tags --always --first-parent"
     pushfl = "push --force-with-lease"
