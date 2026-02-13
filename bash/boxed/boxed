@@ -101,6 +101,33 @@ if [ -z "$command_name" ]; then
     usage
 fi
 
+if alias_def=$(bash -i -c "alias $command_name 2>/dev/null"); then
+    # Extract command from alias output: "alias ll='ls -lh'" -> "'ls -lh'"
+    alias_expansion="${alias_def#alias *=}"
+    # Remove leading single quote
+    alias_expansion="${alias_expansion#\'}"
+    # Remove trailing single quote
+    alias_expansion="${alias_expansion%\'}"
+    # Remove leading double quote (for aliases defined with "")
+    alias_expansion="${alias_expansion#\"}"
+    # Remove trailing double quote
+    alias_expansion="${alias_expansion%\"}"
+
+    # Split alias expansion into array on whitespace: "ls -lh" -> ("ls" "-lh")
+    read -ra expanded_cmd <<< "$alias_expansion"
+
+    # Prevent recursive aliases: skip expansion if alias expands to boxed itself
+    if [[ "${expanded_cmd[0]}" == "boxed" ]]; then
+        :  # Do nothing, use original command_name
+    else
+        shift
+
+        set -- "${expanded_cmd[@]}" "$@"
+
+        command_name="${expanded_cmd[0]}"
+    fi
+fi
+
 if ! command -v "$command_name" &>/dev/null; then
     echo "Error: command '$command_name' not found" >&2
     exit 1

@@ -14,6 +14,13 @@
 - **No network by default**: Network must be explicitly enabled with `--net` flag
 - **Principle of least privilege**: Profiles only add necessary bindings, never weaken defaults
 
+### Command Resolution
+
+- **Alias expansion**: If the specified command is a shell alias, `boxed` expands it by sourcing the user's bashrc in an interactive subshell
+- **Recursive alias prevention**: Skips expansion if the alias expands to `boxed` itself (e.g., `npm='boxed npm -- npm'`)
+- **Command validation**: After alias expansion, verifies the resulting command is executable
+- **Implementation**: Uses `bash -i -c "alias <cmd>"` to query aliases from the user's environment
+
 ### Profile-Based Configuration
 
 - **Profiles are bash scripts**: Located in `bash/boxed/profiles.d/`, sourced after core features are initialized
@@ -36,6 +43,10 @@ boxed --debug npm npm test
 
 # Enable network and home directory (even if the profile would not enable network)
 boxed --net --home npm npm publish
+
+# Use shell aliases (expanded in current shell before sandboxing)
+alias ll='ls -l'
+boxed npm ll  # Expands to: ls -l
 ```
 
 ### Creating a Profile
