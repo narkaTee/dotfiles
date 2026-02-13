@@ -38,7 +38,7 @@ RSpec.describe Cfg::Git do
 
       it 'clones the repo and configures git author' do
         expect(Open3).to receive(:capture3)
-          .with('git', 'clone', Cfg::Git::REPO_URL, repo_path)
+          .with('git', 'clone', '-q', Cfg::Git::REPO_URL, repo_path)
           .and_return(['', '', double(success?: true)])
         expect(Open3).to receive(:capture3)
           .with('git', '-C', repo_path, 'github')
@@ -49,15 +49,15 @@ RSpec.describe Cfg::Git do
 
       it 'raises error on clone failure' do
         expect(Open3).to receive(:capture3)
-          .with('git', 'clone', Cfg::Git::REPO_URL, repo_path)
+          .with('git', 'clone', '-q', Cfg::Git::REPO_URL, repo_path)
           .and_return(['', 'clone failed', double(success?: false)])
 
-        expect { described_class.ensure_repo! }.to raise_error(Cfg::Error, /Failed to clone/)
+        expect { described_class.ensure_repo! }.to raise_error(Cfg::RepoUnavailableError, /Failed to clone/)
       end
 
       it 'warns on git config failure but does not raise' do
         allow(Open3).to receive(:capture3)
-          .with('git', 'clone', Cfg::Git::REPO_URL, repo_path)
+          .with('git', 'clone', '-q', Cfg::Git::REPO_URL, repo_path)
           .and_return(['', '', double(success?: true)])
         allow(Open3).to receive(:capture3)
           .with('git', '-C', repo_path, 'github')
@@ -69,8 +69,19 @@ RSpec.describe Cfg::Git do
   end
 
   describe '.needs_pull?' do
+    context 'when repo does not exist' do
+      before do
+        allow(Dir).to receive(:exist?).with(File.join(repo_path, '.git')).and_return(false)
+      end
+
+      it 'returns false' do
+        expect(described_class.needs_pull?).to be false
+      end
+    end
+
     context 'when last_pull file does not exist' do
       before do
+        allow(Dir).to receive(:exist?).with(File.join(repo_path, '.git')).and_return(true)
         allow(File).to receive(:exist?).with(last_pull_file).and_return(false)
       end
 
@@ -81,6 +92,7 @@ RSpec.describe Cfg::Git do
 
     context 'when last_pull file is old' do
       before do
+        allow(Dir).to receive(:exist?).with(File.join(repo_path, '.git')).and_return(true)
         allow(File).to receive(:exist?).with(last_pull_file).and_return(true)
         allow(File).to receive(:mtime).with(last_pull_file).and_return(Time.now - 3 * 60 * 60)
       end
@@ -92,6 +104,7 @@ RSpec.describe Cfg::Git do
 
     context 'when last_pull file is recent' do
       before do
+        allow(Dir).to receive(:exist?).with(File.join(repo_path, '.git')).and_return(true)
         allow(File).to receive(:exist?).with(last_pull_file).and_return(true)
         allow(File).to receive(:mtime).with(last_pull_file).and_return(Time.now - 60)
       end

@@ -27,6 +27,7 @@ module Cfg
     end
 
     def list_profiles
+      Git.ensure_repo!
       Git.auto_sync!
 
       profile_names = Storage.list_profile_names

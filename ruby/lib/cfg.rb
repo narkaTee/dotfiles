@@ -2,6 +2,7 @@
 
 module Cfg
   class Error < StandardError; end
+  class RepoUnavailableError < Error; end
   class ProfileNotFoundError < Error; end
   class TemplateNotFoundError < Error; end
   class ProfileExistsError < Error; end

@@ -28,6 +28,21 @@ The `cfg` tool manages configuration templates stored in a private git repositor
 
 ## Usage
 
+### Graceful Degradation
+
+**Disable mode (`CFG_DISABLE=1`):**
+- When `CFG_DISABLE=1` is set, `cfg` becomes a pass-through wrapper
+- Execution: `cfg <profile> <cmd>` → executes `<cmd>` directly (ignores `<profile>`)
+- Management commands (`add`, `edit`, `sync`, etc.) exit with error
+- Use case: Sandboxes where cfg functionality should be completely disabled
+
+**Clone failure fallback:**
+- When `git clone` fails (e.g., no SSH keys in sandbox):
+  - **Execution commands** (`cfg <profile> <cmd>`): Print warning to stderr, run `<cmd>` without profile
+  - **Management commands**: Exit with error (repo required)
+  - **Selection commands** (`--select`, `--has-profiles`): Exit with error
+- Use case: Sandboxes where repo isn't accessible but commands should still run
+
 ### Running with configs
 
 ```bash
@@ -174,6 +189,10 @@ OPENAI_API_KEY=op://work/openai/api-key
 
 **Initial clone:**
 - On first operation (or `cfg sync`), clone repo from `REPO_URL` to `REPO_PATH`
+- Uses `git clone -q` for quiet operation (still returns exit code)
+- If clone fails:
+  - **Execution commands**: Print warning to stderr, continue without profile (see Graceful Degradation)
+  - **Other commands**: Raise error and exit
 - After successful clone, run `git github` to configure author info
 - If `git github` fails: warn but continue (repo still usable)
 

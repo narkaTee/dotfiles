@@ -17,8 +17,8 @@ module Cfg
 
       UI.with_spinner('Cloning configuration repository...') do
         FileUtils.mkdir_p(File.dirname(REPO_PATH))
-        stdout, stderr, status = Open3.capture3('git', 'clone', REPO_URL, REPO_PATH)
-        raise Error, "Failed to clone repo: #{stderr}" unless status.success?
+        stdout, stderr, status = Open3.capture3('git', 'clone', '-q', REPO_URL, REPO_PATH)
+        raise RepoUnavailableError, "Failed to clone repo: #{stderr}" unless status.success?
 
         _, stderr_config, status_config = Open3.capture3('git', '-C', REPO_PATH, 'github')
         warn "Warning: Failed to configure git author: #{stderr_config}" unless status_config.success?
@@ -28,6 +28,7 @@ module Cfg
     end
 
     def needs_pull?
+      return false unless Dir.exist?(File.join(REPO_PATH, '.git'))
       return true unless File.exist?(LAST_PULL_FILE)
 
       last_pull = File.mtime(LAST_PULL_FILE)
@@ -71,6 +72,9 @@ module Cfg
       return unless needs_pull?
 
       pull!
+    rescue RepoUnavailableError
+      # Don't catch RepoUnavailableError - let it propagate for graceful degradation
+      raise
     rescue Error => e
       warn "Warning: Auto-sync failed: #{e.message}"
     end

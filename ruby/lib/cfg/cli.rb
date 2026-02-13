@@ -10,6 +10,11 @@ module Cfg
     module_function
 
     def run(argv)
+      # Handle CFG_DISABLE mode
+      if ENV['CFG_DISABLE'] == '1'
+        return handle_disabled_mode(argv)
+      end
+
       return cmd_help if argv.empty?
 
       case argv.first
@@ -240,34 +245,94 @@ module Cfg
       profile_name = remaining.shift
       abort 'Usage: cfg <profile> [--export-env|--export-file [--base-dir <dir>]|<cmd...>]' unless profile_name
 
-      # Resolve profile name (supports prefix matching)
-      resolved_name = Selector.select_profile(profile_name)
-      abort "Profile not found: #{profile_name}" unless resolved_name
+      begin
+        # Resolve profile name (supports prefix matching)
+        resolved_name = Selector.select_profile(profile_name)
+        abort "Profile not found: #{profile_name}" unless resolved_name
 
-      profile = Profiles.get_profile(resolved_name)
+        profile = Profiles.get_profile(resolved_name)
 
-      if opts[:export_env]
-        puts Runner.export_env(profile)
-      elsif opts[:export_file]
-        if opts[:base_dir]
-          paths = Runner.export_all_files(profile, opts[:base_dir])
-          paths.each { |p| puts p }
+        if opts[:export_env]
+          puts Runner.export_env(profile)
+        elsif opts[:export_file]
+          if opts[:base_dir]
+            paths = Runner.export_all_files(profile, opts[:base_dir])
+            paths.each { |p| puts p }
+          else
+            target = remaining.shift
+            abort 'Usage: cfg <profile> --export-file <target>' unless target
+
+            puts Runner.export_file(profile, target)
+          end
         else
-          target = remaining.shift
-          abort 'Usage: cfg <profile> --export-file <target>' unless target
+          cmd = remaining
+          abort 'Usage: cfg <profile> <cmd...>' if cmd.empty?
 
-          puts Runner.export_file(profile, target)
+          exit_code = Runner.run_command(profile, cmd)
+          exit(exit_code)
         end
-      else
-        cmd = remaining
-        abort 'Usage: cfg <profile> <cmd...>' if cmd.empty?
+      rescue RepoUnavailableError
+        # Repository not available - check if we can fall back
+        if opts[:export_env] || opts[:export_file]
+          $stderr.puts "cfg: Repository unavailable, cannot export profile data"
+          exit 1
+        else
+          # Command execution mode - run without profile
+          cmd = remaining
+          abort 'Usage: cfg <profile> <cmd...>' if cmd.empty?
 
-        exit_code = Runner.run_command(profile, cmd)
-        exit(exit_code)
+          $stderr.puts "cfg: Warning - repository unavailable, running command without profile configuration"
+          pid = Process.spawn(*cmd, in: :in, out: :out, err: :err)
+          Process.wait(pid)
+          exit($?.exitstatus)
+        end
       end
     end
 
     # Helper methods
+
+    def handle_disabled_mode(argv)
+      # Check if this is a management command
+      if argv.empty?
+        $stderr.puts "cfg: Disabled (CFG_DISABLE=1)"
+        exit 1
+      end
+
+      case argv.first
+      when 'list', 'ls', 'add', 'import', 'show', 'edit', 'delete', 'sync', '--select', '--has-profiles', '--help', '-h', 'help'
+        $stderr.puts "cfg: Management commands disabled (CFG_DISABLE=1)"
+        exit 1
+      end
+
+      # Execution mode - parse to extract command
+      remaining = []
+      i = 0
+      while i < argv.length
+        arg = argv[i]
+        case arg
+        when '--export-env', '--export-file'
+          $stderr.puts "cfg: Export modes disabled (CFG_DISABLE=1)"
+          exit 1
+        when '--base-dir'
+          $stderr.puts "cfg: Export modes disabled (CFG_DISABLE=1)"
+          exit 1
+        else
+          remaining << arg
+        end
+        i += 1
+      end
+
+      _profile_name = remaining.shift
+      cmd = remaining
+
+      if cmd.empty?
+        $stderr.puts "cfg: Usage: cfg <profile> <cmd...>"
+        exit 1
+      end
+
+      # Execute command directly, ignoring profile
+      exec(*cmd)
+    end
 
     def show_profile_yaml(profile)
       yaml = {
