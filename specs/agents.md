@@ -43,8 +43,9 @@ npm -g install @openai/codex
 ### Pi
 
 ```bash
-npm install -g @mariozechner/pi-coding-agent
-pi install git:https://github.com/narkaTee/agent-magic
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+pi install git:github.com/narkaTee/agent-magic
+pi install git:github.com/earendil-works/pi-review
 ```
 
 ## Credential Files (Require tmpfs Isolation)

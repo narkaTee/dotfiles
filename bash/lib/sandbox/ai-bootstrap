@@ -243,7 +243,7 @@ bootstrap_ai() {
             ;;
         pi)
             build_pi_config "$temp" "$name"
-            install_cmd="npm install -g @mariozechner/pi-coding-agent && pi install git:https://github.com/narkaTee/agent-magic"
+            install_cmd="npm install -g --ignore-scripts @earendil-works/pi-coding-agent && pi install git:github.com/narkaTee/agent-magic && pi install git:github.com/earendil-works/pi-review"
             ;;
         *)
             echo "Unknown agent '$agent'" >&2
