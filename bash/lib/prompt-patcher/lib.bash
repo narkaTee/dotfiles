@@ -4,6 +4,7 @@
 
 PROMPTS_PATCHER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BLOCKS_DIR="$PROMPTS_PATCHER_DIR/blocks"
+PATCHED_PROMPT_HINT_TAG="patched-prompt-hint"
 
 get_prompt_filename() {
     local tool_name="$1"
@@ -33,6 +34,40 @@ format_allowlist_for_prompt() {
     sort
 }
 
+get_prompt_start_marker() {
+    local block_id="$1"
+    echo "<$PATCHED_PROMPT_HINT_TAG block=\"$block_id\">"
+}
+
+get_prompt_end_marker() {
+    echo "</$PATCHED_PROMPT_HINT_TAG>"
+}
+
+get_legacy_prompt_start_marker() {
+    local block_id="$1"
+    echo "<!-- SANDBOX-BLOCK: $block_id -->"
+}
+
+get_legacy_prompt_end_marker() {
+    local block_id="$1"
+    echo "<!-- END-SANDBOX-BLOCK: $block_id -->"
+}
+
+remove_marker_range() {
+    local file="$1"
+    local start_marker="$2"
+    local end_marker="$3"
+
+    if ! grep -qF "$start_marker" "$file"; then
+        return 0
+    fi
+
+    local temp_file
+    temp_file="$(mktemp)"
+    sed "/$(printf '%s' "$start_marker" | sed 's/[]\/$*.^[]/\\&/g')/,/$(printf '%s' "$end_marker" | sed 's/[]\/$*.^[]/\\&/g')/d" "$file" > "$temp_file"
+    mv "$temp_file" "$file"
+}
+
 get_prompt_block() {
     local block_id="$1"
     local allowlist_path="${2:-}"
@@ -43,10 +78,8 @@ get_prompt_block() {
         return 1
     fi
 
-    # Output with markers
-    echo "<!-- SANDBOX-BLOCK: $block_id -->"
+    get_prompt_start_marker "$block_id"
 
-    # If this is proxy-restrictions and allowlist exists, inject it
     if [[ "$block_id" == "proxy-restrictions" ]]; then
         sed '/<!-- ALLOWLIST_START -->/q' "$block_file"
         format_allowlist_for_prompt "$allowlist_path"
@@ -55,7 +88,7 @@ get_prompt_block() {
         cat "$block_file"
     fi
 
-    echo "<!-- END-SANDBOX-BLOCK: $block_id -->"
+    get_prompt_end_marker
 }
 
 remove_prompt_block() {
@@ -66,20 +99,8 @@ remove_prompt_block() {
         return 0
     fi
 
-    local start_marker="<!-- SANDBOX-BLOCK: $block_id -->"
-    local end_marker="<!-- END-SANDBOX-BLOCK: $block_id -->"
-
-    # Check if block exists
-    if ! grep -qF "$start_marker" "$file"; then
-        return 0
-    fi
-
-    # Use sed to remove from start to end marker (inclusive)
-    # Create temp file to avoid in-place editing issues
-    local temp_file
-    temp_file="$(mktemp)"
-    sed "/$(printf '%s' "$start_marker" | sed 's/[]\/$*.^[]/\\&/g')/,/$(printf '%s' "$end_marker" | sed 's/[]\/$*.^[]/\\&/g')/d" "$file" > "$temp_file"
-    mv "$temp_file" "$file"
+    remove_marker_range "$file" "$(get_prompt_start_marker "$block_id")" "$(get_prompt_end_marker)"
+    remove_marker_range "$file" "$(get_legacy_prompt_start_marker "$block_id")" "$(get_legacy_prompt_end_marker "$block_id")"
 }
 
 insert_or_replace_block() {
@@ -99,8 +120,10 @@ get_existing_block_ids() {
         return 0
     fi
 
-    # Extract block IDs from start markers
-    grep -oP '<!-- SANDBOX-BLOCK: \K[^ ]+(?= -->)' "$file" || true
+    {
+        grep -oP "^<$PATCHED_PROMPT_HINT_TAG block=\"\K[a-zA-Z0-9_-]+(?=\">$)" "$file" || true
+        grep -oP '^<!-- SANDBOX-BLOCK: \K[a-zA-Z0-9_-]+(?= -->$)' "$file" || true
+    } | sort -u
 }
 
 remove_obsolete_blocks() {

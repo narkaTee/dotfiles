@@ -15,6 +15,12 @@ Take a look at the [Rakefile](Rakefile) to understand what tasks are available a
 
 After making changes run the appropiate checks/tests.
 
+Required packages for bats tests on Debian/Ubuntu:
+
+```bash
+sudo -n apt-get update && sudo -n apt-get install -y bats bats-support bats-assert bats-file
+```
+
 ```bash
 rake check  # Runs all checks (shellcheck + shell syntax)
 rake shellcheck # Shellcheck

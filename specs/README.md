@@ -31,7 +31,7 @@ This directory contains detailed specifications for each component in the dotfil
 | ↳ Hetzner Cloud Backend | [sandbox-hcloud.md](sandbox-hcloud.md) | `bash/lib/sandbox/hcloud-backend` | Hetzner Cloud VMs with ephemeral lifecycle, direct SSH access, and location-aware `--select` server type picking |
 | ↳ Proxy Backend | [sandbox-proxy.md](sandbox-proxy.md) | `bash/lib/sandbox/proxy-backend`, `bash/lib/sandbox/proxy-cli` | Restrictive proxy with domain allowlist |
 | ↳ AI Bootstrap | [sandbox-ai-bootstrap.md](sandbox-ai-bootstrap.md) | `bash/lib/sandbox/ai-bootstrap` | AI agent configuration and credential setup for sandboxes |
-| **Prompt Patcher Lib** | [prompt-patcher.md](prompt-patcher.md) | `bash/lib/prompt-patcher` | Dynamic AI agent prompt injection for  global instructions and sandbox environment constraints |
+| **Prompt Patcher Lib** | [prompt-patcher.md](prompt-patcher.md) | `bash/lib/prompt-patcher` | Dynamic AI agent prompt injection using reserved patcher markers for global instructions and sandbox environment constraints |
 
 ## Purpose of These Specs
 

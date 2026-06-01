@@ -9,22 +9,18 @@ load '/usr/lib/bats/bats-file/load.bash'
 
 # Setup/teardown helpers
 setup() {
-    # Load the library under test
     source "$BATS_TEST_DIRNAME/lib.bash"
 
-    # Create temp directory for test files
     TEST_TEMP_DIR="$(temp_make)"
     TEST_FILE="$TEST_TEMP_DIR/TEST_PROMPT.md"
 }
 
 teardown() {
-    # Cleanup temp directory
     temp_del "$TEST_TEMP_DIR"
 }
 
 count_trailing_newlines() {
     local file="$1"
-    # Get last 20 bytes and count newlines at end
     tail -c 20 "$file" | od -An -c | grep -o '\\n' | wc -l
 }
 
@@ -34,15 +30,13 @@ count_trailing_newlines() {
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Verify block markers exist
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_contains "$TEST_FILE" "<!-- END-SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_contains "$TEST_FILE" '</patched-prompt-hint>'
 }
 
 @test "insert_or_replace_block is idempotent - no newline accumulation" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Insert block three times
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
     size_after_first=$(wc -c < "$TEST_FILE")
@@ -55,7 +49,6 @@ count_trailing_newlines() {
     assert_success
     size_after_third=$(wc -c < "$TEST_FILE")
 
-    # File size should be identical after each operation
     assert_equal "$size_after_first" "$size_after_second"
     assert_equal "$size_after_second" "$size_after_third"
 }
@@ -63,20 +56,16 @@ count_trailing_newlines() {
 @test "insert_or_replace_block replaces existing block" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Insert initial block
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Verify only one occurrence of start marker
-    run bash -c "grep -c '<!-- SANDBOX-BLOCK: sandbox-bwrap -->' '$TEST_FILE'"
+    run bash -c "grep -c '<patched-prompt-hint block=\"sandbox-bwrap\">' '$TEST_FILE'"
     assert_output "1"
 
-    # Replace block
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Should still have exactly one occurrence
-    run bash -c "grep -c '<!-- SANDBOX-BLOCK: sandbox-bwrap -->' '$TEST_FILE'"
+    run bash -c "grep -c '<patched-prompt-hint block=\"sandbox-bwrap\">' '$TEST_FILE'"
     assert_output "1"
 }
 
@@ -86,15 +75,13 @@ count_trailing_newlines() {
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Verify block exists
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
 
     run remove_prompt_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Verify block is gone
-    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_not_contains "$TEST_FILE" "<!-- END-SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_file_not_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_not_contains "$TEST_FILE" '</patched-prompt-hint>'
 }
 
 @test "replace_all_prompt_blocks handles multiple blocks" {
@@ -103,31 +90,26 @@ count_trailing_newlines() {
     run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap" "git-readonly"
     assert_success
 
-    # Both blocks should exist
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: git-readonly -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="git-readonly">'
 }
 
 @test "replace_all_prompt_blocks removes obsolete blocks" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Add three blocks
     run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap" "git-readonly" "sandbox-vm"
     assert_success
 
-    # Verify all three exist
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: git-readonly -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-vm -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="git-readonly">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-vm">'
 
-    # Replace with only two blocks
     run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap" "git-readonly"
     assert_success
 
-    # First two should exist, third should be removed
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: git-readonly -->"
-    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-vm -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="git-readonly">'
+    assert_file_not_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-vm">'
 }
 
 @test "get_existing_block_ids returns correct block IDs" {
@@ -165,7 +147,6 @@ count_trailing_newlines() {
 }
 
 @test "get_prompt_block injects allowlist for proxy-restrictions" {
-    # Create test allowlist
     local allowlist="$TEST_TEMP_DIR/allowlist.txt"
     cat > "$allowlist" <<EOF
 # Comment line
@@ -178,12 +159,9 @@ EOF
     run get_prompt_block "proxy-restrictions" "$allowlist"
     assert_success
 
-    # Should contain formatted domains (without regex syntax)
     assert_output --partial "example.com"
     assert_output --partial "*github.com"
     assert_output --partial "api.service.net"
-
-    # Should NOT contain comment lines
     refute_output --partial "# Comment"
 }
 
@@ -196,7 +174,6 @@ EOF
 @test "remove_prompt_block safely handles non-existent block" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Should not error
     run remove_prompt_block "$TEST_FILE" "non-existent-block"
     assert_success
 }
@@ -218,7 +195,6 @@ EOF
     run insert_or_replace_block "$TEST_FILE" "sandbox-bwrap"
     assert_success
 
-    # Check permissions are still 600
     run stat -c "%a" "$TEST_FILE"
     assert_output "600"
 }
@@ -227,12 +203,10 @@ EOF
     run get_prompt_block "sandbox-bwrap"
     assert_success
 
-    # First line should be start marker
-    assert_line --index 0 "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_line --index 0 '<patched-prompt-hint block="sandbox-bwrap">'
 
-    # Last line should be end marker
     last_line=$(get_prompt_block 'sandbox-bwrap' | tail -1)
-    assert_equal "$last_line" "<!-- END-SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_equal "$last_line" '</patched-prompt-hint>'
 }
 
 @test "format_allowlist_for_prompt handles missing allowlist gracefully" {
@@ -244,47 +218,73 @@ EOF
 @test "multiple insert operations do not duplicate block content" {
     echo "# Original Content" > "$TEST_FILE"
 
-    # Insert same block multiple times
     for i in {1..3}; do
         run insert_or_replace_block "$TEST_FILE" "git-readonly"
         assert_success
     done
 
-    # Should have exactly one start and one end marker
-    run bash -c "grep -c '<!-- SANDBOX-BLOCK: git-readonly -->' '$TEST_FILE'"
+    run bash -c "grep -c '<patched-prompt-hint block=\"git-readonly\">' '$TEST_FILE'"
     assert_output "1"
 
-    run bash -c "grep -c '<!-- END-SANDBOX-BLOCK: git-readonly -->' '$TEST_FILE'"
+    run bash -c "grep -c '</patched-prompt-hint>' '$TEST_FILE'"
     assert_output "1"
 }
 
 @test "replace_all_prompt_blocks automatically includes default blocks" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Call with only environment-specific blocks
     run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap"
     assert_success
 
-    # Default blocks should be automatically included
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: communication -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: conventions -->"
-
-    # Requested block should also be present
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="communication">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="conventions">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
 }
 
 @test "replace_all_prompt_blocks includes only default blocks when no others specified" {
     echo "# Test Header" > "$TEST_FILE"
 
-    # Call with no environment-specific blocks
     run replace_all_prompt_blocks "$TEST_FILE" ""
     assert_success
 
-    # Default blocks should still be included
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: communication -->"
-    assert_file_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: conventions -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="communication">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="conventions">'
+    assert_file_not_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
+    assert_file_not_contains "$TEST_FILE" '<patched-prompt-hint block="git-readonly">'
+}
 
-    # No other blocks should be present
-    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-bwrap -->"
-    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: git-readonly -->"
+@test "replace_all_prompt_blocks preserves user xml-like sections" {
+    cat > "$TEST_FILE" <<EOF
+# Test Header
+<context>
+user-owned section
+</context>
+EOF
+
+    run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap"
+    assert_success
+
+    assert_file_contains "$TEST_FILE" "<context>"
+    assert_file_contains "$TEST_FILE" "user-owned section"
+    assert_file_contains "$TEST_FILE" "</context>"
+}
+
+@test "replace_all_prompt_blocks removes legacy blocks during upgrade" {
+    cat > "$TEST_FILE" <<EOF
+# Test Header
+<!-- SANDBOX-BLOCK: communication -->
+old communication
+<!-- END-SANDBOX-BLOCK: communication -->
+<!-- SANDBOX-BLOCK: sandbox-vm -->
+old sandbox
+<!-- END-SANDBOX-BLOCK: sandbox-vm -->
+EOF
+
+    run replace_all_prompt_blocks "$TEST_FILE" "" "sandbox-bwrap"
+    assert_success
+
+    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: communication -->"
+    assert_file_not_contains "$TEST_FILE" "<!-- SANDBOX-BLOCK: sandbox-vm -->"
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="communication">'
+    assert_file_contains "$TEST_FILE" '<patched-prompt-hint block="sandbox-bwrap">'
 }

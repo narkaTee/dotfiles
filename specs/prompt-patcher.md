@@ -8,7 +8,8 @@ The prompt-patcher library manages AI agent prompt files (CLAUDE.md, GEMINI.md, 
 
 - **Block-based injection**: Prompt content organized as reusable markdown blocks in `blocks/` directory
 - **Idempotent operations**: Can safely re-run block replacement without duplication
-- **Marker-based tracking**: Uses HTML comments (`<!-- SANDBOX-BLOCK: id -->`) to identify and replace blocks
+- **Marker-based tracking**: Uses reserved XML wrappers (`<patched-prompt-hint block="id">`) to identify and replace only patcher-managed blocks
+- **Backward compatibility**: Removes legacy HTML comment markers during patching so existing prompt files upgrade cleanly
 - **Tool-agnostic**: Supports multiple AI tools (Claude, Gemini, OpenCode) with tool-specific prompt filenames
 - **Runtime allowlist injection**: Special handling for `proxy-restrictions` block to inject domain allowlists at runtime
 - **Automatic cleanup**: Removes obsolete blocks when configuration changes
@@ -24,9 +25,9 @@ source ~/.config/lib/bash/prompt-patcher/lib.bash
 # Get a single block with markers
 get_prompt_block "sandbox-bwrap"
 # Output:
-# <!-- SANDBOX-BLOCK: sandbox-bwrap -->
+# <patched-prompt-hint block="sandbox-bwrap">
 # [block content]
-# <!-- END-SANDBOX-BLOCK: sandbox-bwrap -->
+# </patched-prompt-hint>
 
 # Get proxy restrictions with allowlist injection
 get_prompt_block "proxy-restrictions" "/path/to/allowlist"
