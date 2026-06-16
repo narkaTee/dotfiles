@@ -7,6 +7,9 @@ STATE_DIR="$DATA_DIR/state"
 STATE_DIR_TMP="$DATA_DIR/state/tmp"
 STATE_DIR_HOME="$DATA_DIR/state/home"
 CACHE_DIR="$DATA_DIR/cache"
+DESKTOP_FILE="$HOME/.local/share/applications/horizon-jail.desktop"
+
+SCRIPT_PATH="$(readlink -f "$0")"
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -41,6 +44,72 @@ cmd_run() {
     mkdir -p "$STATE_DIR" "$STATE_DIR/run"
     mkdir -p "$STATE_DIR_TMP"
     mkdir -p "$STATE_DIR_HOME/viewctrl"
+
+    local url_fifo="$STATE_DIR/run/host-url-opener.fifo"
+    local host_bin="$STATE_DIR/run/host-bin"
+    local url_log="$STATE_DIR_TMP/host-url-opener.log"
+    local url_helper_pid=""
+
+    cleanup_host_url_opener() {
+        if [[ -n "$url_helper_pid" ]]; then
+            kill "$url_helper_pid" 2>/dev/null || true
+        fi
+        rm -f "$url_fifo"
+    }
+
+    setup_host_url_opener() {
+        rm -f "$url_fifo"
+        mkdir -p "$host_bin"
+        mkfifo "$url_fifo"
+
+        (
+            # Open read-write so the FIFO stays open between short-lived shim writers.
+            exec 3<>"$url_fifo"
+            while IFS= read -r url <&3; do
+                printf '%s host-url-opener request: %s\n' "$(date -Is)" "$url" >> "$url_log"
+                case "$url" in
+                    # yes we could make this more strict and filter for exact domains.
+                    # But that would be overkill, we are not running totally untrusted code here.
+                    # So allow all urls should be good enough.
+                    http://*|https://*)
+                        xdg-open "$url" >/dev/null 2>&1 &
+                        printf '%s host-url-opener opened: %s\n' "$(date -Is)" "$url" >> "$url_log"
+                        ;;
+                    *)
+                        printf '%s host-url-opener rejected: %s\n' "$(date -Is)" "$url" >> "$url_log"
+                        ;;
+                esac
+            done
+        ) &
+        url_helper_pid=$!
+
+        local shim
+        for shim in firefox xdg-open sensible-browser www-browser gio; do
+            cat > "$host_bin/$shim" << 'SHIM'
+#!/bin/bash
+set -euo pipefail
+fifo=/var/run/omnissa/host-url-opener.fifo
+url=""
+for arg in "$@"; do
+    case "$arg" in
+        http://*|https://*)
+            url="$arg"
+            break
+            ;;
+    esac
+done
+if [[ -z "$url" ]]; then
+    exit 0
+fi
+printf '%s\n' "$url" > "$fifo"
+exit 0
+SHIM
+            chmod +x "$host_bin/$shim"
+        done
+    }
+
+    setup_host_url_opener
+    trap cleanup_host_url_opener EXIT INT TERM HUP
 
     local bwrap_args=(
         --die-with-parent
@@ -138,6 +207,9 @@ cmd_run() {
     [[ -d "$ROOT_DIR/etc/omnissa" ]] && bwrap_args+=(--ro-bind "$ROOT_DIR/etc/omnissa" /etc/omnissa)
     [[ -d "$ROOT_DIR/etc/vmware" ]] && bwrap_args+=(--ro-bind "$ROOT_DIR/etc/vmware" /etc/vmware)
 
+    # Debian alternatives are needed for symlinked tools such as /usr/bin/awk.
+    [[ -d /etc/alternatives ]] && bwrap_args+=(--ro-bind /etc/alternatives /etc/alternatives)
+
     # USB passthrough
     [[ -d /dev/bus/usb ]] && bwrap_args+=(--dev-bind /dev/bus/usb /dev/bus/usb)
     [[ -e /dev/uinput ]] && bwrap_args+=(--dev-bind /dev/uinput /dev/uinput)
@@ -190,7 +262,7 @@ cmd_run() {
     bwrap_args+=(
         --setenv HOME "$HOME"
         --setenv USER "$USER"
-        --setenv PATH "/usr/lib/omnissa/horizon/bin:/usr/lib/omnissa/horizon/client:/usr/bin:/bin:/usr/sbin:/sbin"
+        --setenv PATH "/var/run/omnissa/host-bin:/usr/lib/omnissa/horizon/bin:/usr/lib/omnissa/horizon/client:/usr/bin:/bin:/usr/sbin:/sbin"
         --setenv LD_LIBRARY_PATH "/usr/lib/omnissa/horizon/lib:/usr/lib/omnissa:/usr/lib/omnissa/gcc"
         --setenv GDK_BACKEND "x11"
         --setenv DOTNET_SYSTEM_GLOBALIZATION_INVARIANT "1"
@@ -249,15 +321,75 @@ WRAPPER
 
     bwrap_args+=(--ro-bind "$wrapper" /tmp/horizon-wrapper)
 
+    local status
+    set +e
     if [[ -n "${STRACE_MODE:-}" ]]; then
-        exec bwrap "${bwrap_args[@]}" strace -f -o /tmp/horizon-strace.log /bin/bash /tmp/horizon-wrapper "$@"
+        bwrap "${bwrap_args[@]}" strace -f -o /tmp/horizon-strace.log /bin/bash /tmp/horizon-wrapper "$@"
+        status=$?
     else
-        exec bwrap "${bwrap_args[@]}" /bin/bash /tmp/horizon-wrapper "$@"
+        bwrap "${bwrap_args[@]}" /bin/bash /tmp/horizon-wrapper "$@"
+        status=$?
     fi
+    set -e
+    cleanup_host_url_opener
+    trap - EXIT INT TERM HUP
+    return "$status"
 }
 
 cmd_shell() {
     HORIZON_SHELL_MODE=1 cmd_run
+}
+
+cmd_install_handler() {
+    mkdir -p "$(dirname "$DESKTOP_FILE")"
+    cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Horizon Jail
+Comment=Launch Omnissa Horizon Client via horizon-jail sandbox
+Exec=$SCRIPT_PATH %u
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/vmware-view;x-scheme-handler/horizon-client;
+Categories=Network;RemoteAccess;
+EOF
+    chmod 0644 "$DESKTOP_FILE"
+
+    xdg-mime default horizon-jail.desktop x-scheme-handler/vmware-view
+    xdg-mime default horizon-jail.desktop x-scheme-handler/horizon-client
+
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database "$(dirname "$DESKTOP_FILE")" >/dev/null 2>&1 || true
+    fi
+
+    echo "Installed URL handler: $DESKTOP_FILE"
+    echo "vmware-view: $(xdg-mime query default x-scheme-handler/vmware-view 2>/dev/null || true)"
+    echo "horizon-client: $(xdg-mime query default x-scheme-handler/horizon-client 2>/dev/null || true)"
+}
+
+cmd_uninstall_handler() {
+    rm -f "$DESKTOP_FILE"
+
+    local file
+    for file in \
+        "$HOME/.config/mimeapps.list" \
+        "$HOME/.local/share/applications/mimeapps.list"
+    do
+        if [[ -f "$file" ]]; then
+            sed -i \
+                -e '/^x-scheme-handler\/vmware-view=horizon-jail\.desktop$/d' \
+                -e '/^x-scheme-handler\/horizon-client=horizon-jail\.desktop$/d' \
+                "$file"
+        fi
+    done
+
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database "$(dirname "$DESKTOP_FILE")" >/dev/null 2>&1 || true
+    fi
+
+    echo "Removed URL handler: $DESKTOP_FILE"
+    echo "vmware-view: $(xdg-mime query default x-scheme-handler/vmware-view 2>/dev/null || true)"
+    echo "horizon-client: $(xdg-mime query default x-scheme-handler/horizon-client 2>/dev/null || true)"
 }
 
 case "${1:-}" in
@@ -268,12 +400,20 @@ case "${1:-}" in
     shell)
         cmd_shell
         ;;
+    install-handler)
+        cmd_install_handler
+        ;;
+    uninstall-handler)
+        cmd_uninstall_handler
+        ;;
     help|--help|-h)
         echo "Usage: $0 [command]"
         echo "Commands:"
-        echo "  import <path.deb>  Extract Horizon client deb"
-        echo "  shell              Open debug shell in sandbox"
-        echo "  (no args)          Launch client in sandbox"
+        echo "  import <path.deb>   Extract Horizon client deb"
+        echo "  shell               Open debug shell in sandbox"
+        echo "  install-handler     Register vmware-view URL handler for this user"
+        echo "  uninstall-handler   Remove vmware-view URL handler for this user"
+        echo "  (no args)           Launch client in sandbox"
         ;;
     "")
         cmd_run
