@@ -349,7 +349,8 @@ Name=Horizon Jail
 Comment=Launch Omnissa Horizon Client via horizon-jail sandbox
 Exec=$SCRIPT_PATH %u
 Terminal=false
-NoDisplay=true
+NoDisplay=false
+Icon=$ROOT_DIR/usr/share/icons/horizon-client.png
 MimeType=x-scheme-handler/vmware-view;x-scheme-handler/horizon-client;
 Categories=Network;RemoteAccess;
 EOF
